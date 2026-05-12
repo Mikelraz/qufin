@@ -1,0 +1,1 @@
+"""qufin — quantitative finance toolkit."""
