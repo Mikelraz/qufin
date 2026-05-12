@@ -37,9 +37,9 @@ def simple_returns(prices: pl.DataFrame, date_col: str = "date") -> pl.DataFrame
         dropped).  Date and asset columns are preserved in their original order.
     """
     cols = _asset_cols(prices, date_col)
-    return prices.with_columns(
-        [(pl.col(c) / pl.col(c).shift(1) - 1).alias(c) for c in cols]
-    ).slice(1)
+    return prices.with_columns([(pl.col(c) / pl.col(c).shift(1) - 1).alias(c) for c in cols]).slice(
+        1
+    )
 
 
 def log_returns(prices: pl.DataFrame, date_col: str = "date") -> pl.DataFrame:
@@ -77,9 +77,7 @@ def cumulative_returns(returns: pl.DataFrame, date_col: str = "date") -> pl.Data
         running cumulative return.
     """
     cols = _asset_cols(returns, date_col)
-    return returns.with_columns(
-        [((1 + pl.col(c)).cum_prod() - 1).alias(c) for c in cols]
-    )
+    return returns.with_columns([((1 + pl.col(c)).cum_prod() - 1).alias(c) for c in cols])
 
 
 def annualize_return(total_return: float, n_periods: int, periods_per_year: int) -> float:

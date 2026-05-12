@@ -20,7 +20,6 @@ from qufin.markov.hmm import (
     viterbi,
 )
 
-
 RNG = np.random.default_rng(0)
 
 # ---------------------------------------------------------------------------
@@ -237,10 +236,10 @@ def test_decode_states_in_range() -> None:
 def test_score_matches_forward_log() -> None:
     obs = _generate_obs(50)
     model = fit(obs, n_states=2, n_obs_symbols=3, n_init=2, max_iter=50)
-    log_A = np.log(np.maximum(model.transition_matrix, _EPS))
-    log_B = np.log(np.maximum(model.emission_matrix, _EPS))
+    log_a = np.log(np.maximum(model.transition_matrix, _EPS))
+    log_b = np.log(np.maximum(model.emission_matrix, _EPS))
     log_pi = np.log(np.maximum(model.initial_probs, _EPS))
-    _, ll_direct = forward_log(obs, log_A, log_B, log_pi)
+    _, ll_direct = forward_log(obs, log_a, log_b, log_pi)
     assert abs(score(obs, model) - ll_direct) < 1e-10
 
 

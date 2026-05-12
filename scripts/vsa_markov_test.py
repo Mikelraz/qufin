@@ -1,4 +1,4 @@
-﻿"""VSA Markov test: do divergence states predict market reversals?
+"""VSA Markov test: do divergence states predict market reversals?
 
 Hypothesis: Volume Spread Analysis (VSA) divergence states -- where price and
 volume move in opposite directions -- carry predictive information about the
@@ -35,7 +35,7 @@ from qufin.markov import ChainFit, HigherOrderFit, fit_chain, fit_higher_order
 # Constants
 # ---------------------------------------------------------------------------
 
-TICKER = "SPY"
+TICKERS = ["META", "AAPL", "MSFT", "AMZN", "NVDA", "GOOGL"]
 YEARS = 5
 N_STATES = 4
 HO_ORDER = 2
@@ -60,38 +60,33 @@ SECTION = "=" * 70
 # ---------------------------------------------------------------------------
 
 
-def fetch_data(ticker: str = TICKER, years: int = YEARS) -> pl.DataFrame:
-    """Download *years* of daily OHLCV data for *ticker* via yfinance.
-
-    Falls back to a reproducible synthetic dataset when the network is
-    unavailable or the import fails.
-
-    Returns:
-        Polars DataFrame with columns: date, close, volume.
-    """
+def fetch_data(tickers: list[str] = TICKERS, years: int = YEARS) -> pl.DataFrame:
+    """Download *years* of daily OHLCV data for multiple *tickers* via yfinance."""
     try:
-        import yfinance as yf  # local import -- optional dependency path
+        import yfinance as yf
 
         end = date.today()
         start = end - timedelta(days=years * 365 + 2)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            raw = yf.download(ticker, start=str(start), end=str(end), auto_adjust=True, progress=False)
+            # yfinance handles lists of tickers natively
+            raw = yf.download(tickers, start=str(start), end=str(end), progress=False)
 
         if raw.empty:
             raise RuntimeError("yfinance returned an empty DataFrame")
 
-        # yfinance returns a pandas MultiIndex; flatten and convert immediately.
-        raw.columns = [c[0].lower() if isinstance(c, tuple) else c.lower() for c in raw.columns]
-        raw = raw.reset_index()
-        raw.columns = [c.lower() for c in raw.columns]
-        df = pl.from_pandas(raw[["date", "close", "volume"]])
-        print(f"[data] fetched {len(df):,} rows for {ticker} via yfinance")
+        # Stack the MultiIndex columns to create a 'Ticker' column
+        raw = raw.stack(level=1, future_stack=True).reset_index()
+        raw.columns = [str(c).lower() for c in raw.columns]
+
+        # Keep only the columns we need
+        df = pl.from_pandas(raw[["date", "ticker", "close", "volume"]])
+        print(f"[data] fetched {len(df):,} rows for {len(tickers)} tickers via yfinance")
         return df
 
-    except Exception as exc:  # noqa: BLE001
-        print(f"[data] yfinance unavailable ({exc}); using synthetic mock dataset")
-        return _mock_data(years)
+    except Exception as exc:
+        print(f"[data] yfinance unavailable ({exc}); fallback not configured for multi-ticker")
+        raise
 
 
 def _mock_data(years: int) -> pl.DataFrame:
@@ -117,23 +112,18 @@ def _mock_data(years: int) -> pl.DataFrame:
 
 
 def engineer_features(df: pl.DataFrame) -> pl.DataFrame:
-    """Compute daily dP (close pct change) and dV (volume pct change).
+    """Compute daily dP and dV grouped by ticker to prevent cross-contamination."""
+    # Sort by ticker first, then date
+    df = df.sort(["ticker", "date"])
 
-    Rows where either change is exactly zero are dropped; they cannot be
-    assigned to a VSA quadrant without an arbitrary tie-breaking rule.
-
-    Returns:
-        DataFrame with original columns plus delta_p and delta_v, sorted by
-        date, with the first row (no lag) and flat days removed.
-    """
-    df = df.sort("date")
     df = df.with_columns(
         [
-            (pl.col("close") / pl.col("close").shift(1) - 1.0).alias("delta_p"),
-            (pl.col("volume") / pl.col("volume").shift(1) - 1.0).alias("delta_v"),
+            (pl.col("close") / pl.col("close").shift(1).over("ticker") - 1.0).alias("delta_p"),
+            (pl.col("volume") / pl.col("volume").shift(1).over("ticker") - 1.0).alias("delta_v"),
         ]
     )
-    # Drop the first row (null lag) and any flat day.
+
+    # Drop the first row of each ticker (null lag) and any flat day.
     df = df.drop_nulls(subset=["delta_p", "delta_v"])
     df = df.filter((pl.col("delta_p") != 0.0) & (pl.col("delta_v") != 0.0))
     print(f"[features] {len(df):,} tradeable bars after dropping flat days")
@@ -199,7 +189,7 @@ def fit_models(states: NDArray[np.intp]) -> tuple[ChainFit, HigherOrderFit]:
 
 
 def _fmt_matrix_row(row: NDArray[np.float64], width: int = 8) -> str:
-    return "  ".join(f"{v:{width}.4f}" for v in row)
+    return "  ".join(f"{float(v):{width}.4f}" for v in row)
 
 
 def print_transition_matrix(mat: NDArray[np.float64], title: str) -> None:
@@ -242,17 +232,23 @@ def print_divergence_analysis(chain_fit: ChainFit, ho_fit: HigherOrderFit) -> No
         verdict = "SIGNAL" if reversal_p > 0.50 else "no edge"
         print(f"    Combined {label_rev}: {reversal_p:.4f}  [{verdict}]")
 
-    # Higher-order: marginalise over the first context state for each
-    # divergence state as the *most recent* context element.
-    print(f"\n--- Order-{HO_ORDER} chain (marginalised over oldest context state) ---")
-    tensor = ho_fit.transition_tensor  # shape (S, S, S) for order=2
+    # Higher-order: marginalise over all older context states, keeping only the
+    # most recent context and the next state.
+    print(f"\n--- Order-{HO_ORDER} chain (marginalised over older context states) ---")
+    tensor = ho_fit.transition_tensor  # shape (S,) * (order + 1)
     for s, name in DIVERGENCE_STATES.items():
-        # Average P(next | *, s) across the first axis (oldest context state).
-        marginal_row: NDArray[np.float64] = tensor[:, s, :].mean(axis=0)
+        # Select the most recent context dimension = s, then average over all
+        # older context dimensions. For order=3, tensor[:, :, s, :].mean(axis=(0,1))
+        # Index the (order-1)th dimension with s, then average over preceding dims
+        index = [slice(None)] * tensor.ndim
+        index[HO_ORDER - 1] = s  # Most recent context dimension
+        marginal_row: NDArray[np.float64] = tensor[tuple(index)].mean(
+            axis=tuple(range(HO_ORDER - 1))
+        )
         print(f"\n  {name} (State {s + 1}), most-recent context - marginal next-state probs:")
         for j, label in STATE_LABELS.items():
-            bar = "#" * int(marginal_row[j] * 40)
-            print(f"    -> State {j + 1}  {marginal_row[j]:.4f}  {bar}  {label}")
+            bar = "#" * int(float(marginal_row[j]) * 40)
+            print(f"    -> State {j + 1}  {float(marginal_row[j]):.4f}  {bar}  {label}")
 
         if s == 1:
             reversal_p = float(marginal_row[2] + marginal_row[3])
@@ -271,11 +267,11 @@ def print_divergence_analysis(chain_fit: ChainFit, ho_fit: HigherOrderFit) -> No
 
 def main() -> None:
     print(SECTION)
-    print(f"VSA MARKOV TEST  --  ticker={TICKER}  years={YEARS}  HO order={HO_ORDER}")
+    print(f"VSA MARKOV TEST  --  tickers={TICKERS}  years={YEARS}  HO order={HO_ORDER}")
     print(SECTION)
 
     # Step 1: data
-    df = fetch_data(TICKER, YEARS)
+    df = fetch_data(TICKERS, YEARS)
 
     # Step 2: features
     df = engineer_features(df)
@@ -293,14 +289,15 @@ def main() -> None:
 
     print_transition_matrix(chain_fit.transition_matrix, "First-order Markov chain  (S x S)")
 
-    # For order-2: show the 4x4 slice for each conditioning context -- only the
-    # divergence contexts to keep output concise.  Full tensor is (4, 4, 4).
-    for ctx in range(N_STATES):
-        slice_mat = ho_fit.transition_tensor[ctx]  # shape (S, S), context = ctx
-        print_transition_matrix(
-            slice_mat,
-            f"Order-{HO_ORDER} chain  context[t-2] = State {ctx + 1}: {STATE_LABELS[ctx]}",
-        )
+    # For higher-order chains: show the marginal 4x4 matrix aggregated over
+    # all older context states, keeping only the most recent context dimension.
+    # Full tensor has shape (S,) * (order + 1), e.g. (4,4,4,4) for order=3.
+    # Marginalize over the first (order-1) axes to get (S, S): (most_recent_context, next_state)
+    slice_mat = ho_fit.transition_tensor.mean(axis=tuple(range(HO_ORDER - 1)))
+    print_transition_matrix(
+        slice_mat,
+        f"Order-{HO_ORDER} chain  (marginalised over all older context)",
+    )
 
     print_divergence_analysis(chain_fit, ho_fit)
 

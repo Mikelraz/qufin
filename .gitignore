@@ -42,6 +42,7 @@ data/cache/
 # IDE
 .vscode/
 .idea/
+.claude/
 *.code-workspace
 
 # OS

@@ -59,9 +59,9 @@ class EfficientFrontier:
         risk_free_rate: Annual risk-free rate used when computing Sharpe ratios.
     """
 
-    returns: NDArray[np.float64]        # (n_points,)
-    volatilities: NDArray[np.float64]   # (n_points,)
+    returns: NDArray[np.float64]  # (n_points,)
+    volatilities: NDArray[np.float64]  # (n_points,)
     sharpe_ratios: NDArray[np.float64]  # (n_points,)
-    weights: NDArray[np.float64]        # (n_points, n_assets)
+    weights: NDArray[np.float64]  # (n_points, n_assets)
     asset_names: list[str]
     risk_free_rate: float
