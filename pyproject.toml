@@ -38,6 +38,11 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "N", "NPY", "PD"]
 
+[tool.ruff.lint.per-file-ignores]
+# Notebooks use standard mathematical/financial notation (S, K, T, Sigma, Nd1 …)
+# and exploratory long lines in labels/print statements are acceptable.
+"notebooks/*.ipynb" = ["N8", "E501", "E702", "E731", "E741", "E402"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-n auto"

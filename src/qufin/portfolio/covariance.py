@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 
 
 @numba.njit(cache=True, parallel=True)
-def _lw_beta_sq(x: NDArray[np.float64], S: NDArray[np.float64]) -> float:
+def _lw_beta_sq(x: NDArray[np.float64], s_mat: NDArray[np.float64]) -> float:
     """
     LW (2004) sampling-error estimate: (1/T²) Σ_t ||x_t x_t' - S||²_F.
 
@@ -16,10 +16,10 @@ def _lw_beta_sq(x: NDArray[np.float64], S: NDArray[np.float64]) -> float:
     """
     t, n = x.shape
 
-    trS2 = 0.0
+    tr_s2 = 0.0
     for i in range(n):
         for j in range(n):
-            trS2 += S[i, j] * S[i, j]
+            tr_s2 += s_mat[i, j] * s_mat[i, j]
 
     partial = np.zeros(t)
     for k in numba.prange(t):
@@ -27,12 +27,12 @@ def _lw_beta_sq(x: NDArray[np.float64], S: NDArray[np.float64]) -> float:
         for i in range(n):
             norm2 += x[k, i] * x[k, i]
 
-        xSx = 0.0
+        x_s_x = 0.0
         for i in range(n):
             for j in range(n):
-                xSx += x[k, i] * S[i, j] * x[k, j]
+                x_s_x += x[k, i] * s_mat[i, j] * x[k, j]
 
-        partial[k] = norm2 * norm2 - 2.0 * xSx + trS2
+        partial[k] = norm2 * norm2 - 2.0 * x_s_x + tr_s2
 
     return partial.sum() / (t * t)
 
@@ -51,19 +51,19 @@ def ledoit_wolf_cov(returns: NDArray[np.float64]) -> NDArray[np.float64]:
     """
     t, n = returns.shape
     x = returns - returns.mean(axis=0)
-    S = x.T @ x / t  # biased sample covariance (consistent with LW derivation)
+    s = x.T @ x / t  # biased sample covariance (consistent with LW derivation)
 
-    mu = float(np.trace(S)) / n
+    mu = float(np.trace(s)) / n
 
     # ||S - μI||²_F = tr(S²) - n·μ²
-    delta_sq = float(np.sum(S**2) - n * mu**2)
+    delta_sq = float(np.sum(s**2) - n * mu**2)
     if delta_sq < 1e-20:
-        return S.copy()
+        return s.copy()
 
-    beta_sq = float(_lw_beta_sq(np.ascontiguousarray(x), np.ascontiguousarray(S)))
+    beta_sq = float(_lw_beta_sq(np.ascontiguousarray(x), np.ascontiguousarray(s)))
     alpha = min(1.0, beta_sq / delta_sq)
 
-    return (1.0 - alpha) * S + alpha * mu * np.eye(n)
+    return (1.0 - alpha) * s + alpha * mu * np.eye(n)
 
 
 def ewm_cov(returns: NDArray[np.float64], halflife: float) -> NDArray[np.float64]:

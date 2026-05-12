@@ -66,10 +66,10 @@ def test_ledoit_wolf_cov_positive_definite(returns_mat: np.ndarray) -> None:
 
 
 def test_ledoit_wolf_shrinks_toward_identity(returns_mat: np.ndarray) -> None:
-    S = sample_cov(returns_mat)
+    cov = sample_cov(returns_mat)
     lw = ledoit_wolf_cov(returns_mat)
     # Off-diagonal elements should be shrunk toward zero compared to sample cov
-    off_diag_s = np.abs(S - np.diag(np.diag(S))).mean()
+    off_diag_s = np.abs(cov - np.diag(np.diag(cov))).mean()
     off_diag_lw = np.abs(lw - np.diag(np.diag(lw))).mean()
     assert off_diag_lw <= off_diag_s
 
