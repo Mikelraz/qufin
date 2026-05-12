@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 from datetime import date, timedelta
 
 import numpy as np

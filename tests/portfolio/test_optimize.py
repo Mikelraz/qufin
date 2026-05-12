@@ -66,7 +66,7 @@ def test_max_sharpe_weights_sum_to_one(inputs: tuple[np.ndarray, np.ndarray, lis
 
 
 def test_max_sharpe_dominates_min_variance_sharpe(
-    inputs: tuple[np.ndarray, np.ndarray, list[str]]
+    inputs: tuple[np.ndarray, np.ndarray, list[str]],
 ) -> None:
     mu, cov, names = inputs
     ms = max_sharpe(mu, cov, names, risk_free_rate=0.04)
@@ -83,9 +83,7 @@ def test_max_sharpe_long_only(inputs: tuple[np.ndarray, np.ndarray, list[str]]) 
 # ── efficient_return ──────────────────────────────────────────────────────────
 
 
-def test_efficient_return_achieves_target(
-    inputs: tuple[np.ndarray, np.ndarray, list[str]]
-) -> None:
+def test_efficient_return_achieves_target(inputs: tuple[np.ndarray, np.ndarray, list[str]]) -> None:
     mu, cov, names = inputs
     target = 0.09
     result = efficient_return(mu, cov, target, names)
@@ -93,7 +91,7 @@ def test_efficient_return_achieves_target(
 
 
 def test_efficient_return_weights_sum_to_one(
-    inputs: tuple[np.ndarray, np.ndarray, list[str]]
+    inputs: tuple[np.ndarray, np.ndarray, list[str]],
 ) -> None:
     mu, cov, names = inputs
     result = efficient_return(mu, cov, 0.09, names)
@@ -103,16 +101,14 @@ def test_efficient_return_weights_sum_to_one(
 # ── risk_parity ───────────────────────────────────────────────────────────────
 
 
-def test_risk_parity_weights_sum_to_one(
-    inputs: tuple[np.ndarray, np.ndarray, list[str]]
-) -> None:
+def test_risk_parity_weights_sum_to_one(inputs: tuple[np.ndarray, np.ndarray, list[str]]) -> None:
     mu, cov, names = inputs
     result = risk_parity(cov, names)
     assert result.weights.sum() == pytest.approx(1.0, abs=1e-6)
 
 
 def test_risk_parity_equal_risk_contributions(
-    inputs: tuple[np.ndarray, np.ndarray, list[str]]
+    inputs: tuple[np.ndarray, np.ndarray, list[str]],
 ) -> None:
     mu, cov, names = inputs
     result = risk_parity(cov, names)
