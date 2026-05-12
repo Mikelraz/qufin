@@ -1,4 +1,34 @@
-"""Portfolio analysis and optimization tools."""
+"""Portfolio analysis and optimization tools.
+
+Submodules
+----------
+returns
+    Price-to-return transformations (simple, log, cumulative, annualized).
+metrics
+    Risk and performance metrics: Sharpe, Sortino, Calmar, drawdown, VaR, CVaR.
+covariance
+    Covariance estimators: sample, Ledoit-Wolf shrinkage, exponentially weighted.
+optimize
+    Portfolio optimizers: min-variance, max-Sharpe, risk parity, efficient frontier.
+
+Typical workflow::
+
+    from qufin.portfolio import (
+        simple_returns, to_returns_matrix,
+        annualized_returns,
+        ledoit_wolf_cov, annualize_cov,
+        max_sharpe, efficient_frontier,
+    )
+
+    ret_df = simple_returns(prices_df)
+    mat, names = to_returns_matrix(ret_df)
+    mu_map = annualized_returns(ret_df, periods_per_year=252)
+    mu = np.array([mu_map[n] for n in names])
+    cov = annualize_cov(ledoit_wolf_cov(mat), 252)
+
+    result = max_sharpe(mu, cov, names, risk_free_rate=0.04)
+    ef     = efficient_frontier(mu, cov, names, n_points=60)
+"""
 
 from qufin.portfolio._types import EfficientFrontier, OptimizationResult
 from qufin.portfolio.covariance import (

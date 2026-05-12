@@ -1,3 +1,26 @@
+"""Portfolio optimization via mean-variance analysis.
+
+All optimizers use SLSQP (Sequential Least SQuares Programming) from
+``scipy.optimize.minimize``.  Inputs are expected to be in *annualized* units:
+pass annualized expected returns (``mu``) and an annualized covariance matrix
+(``sigma = daily_cov * periods_per_year``).
+
+Available optimizers
+--------------------
+- ``min_variance``:    lowest achievable portfolio variance.
+- ``max_sharpe``:      highest risk-adjusted return (non-convex, sensitivity
+                       to ``expected_returns`` estimate).
+- ``efficient_return``: lowest variance portfolio subject to a return target.
+- ``efficient_frontier``: traces the full frontier from min-variance to
+                       max-return by solving ``efficient_return`` at each point.
+- ``risk_parity``:     equal risk contribution from every asset.
+
+Long-only constraint
+--------------------
+When ``long_only=True`` (default) weights are bounded to [0, 1].  Set
+``long_only=False`` to allow short positions with bounds [-1, 1].
+"""
+
 from __future__ import annotations
 
 import math
@@ -50,6 +73,7 @@ def _weight_bounds(n: int, long_only: bool) -> list[tuple[float, float]]:
     return [(0.0, 1.0)] * n if long_only else [(-1.0, 1.0)] * n
 
 
+# Reused across all solvers — weights must sum to exactly 1.
 _SUM_TO_ONE: dict[str, Any] = {"type": "eq", "fun": lambda w: w.sum() - 1.0}
 
 # ── public optimizers ─────────────────────────────────────────────────────────
@@ -62,7 +86,29 @@ def min_variance(
     risk_free_rate: float = 0.0,
     long_only: bool = True,
 ) -> OptimizationResult:
-    """Minimum global variance portfolio."""
+    """Find the portfolio with the lowest attainable variance.
+
+    Solves::
+
+        min  w' Sigma w
+        s.t. sum(w) = 1
+             w_i >= 0   (if long_only)
+
+    The minimum-variance portfolio lies at the left tip of the efficient
+    frontier and represents the most diversified allocation in a
+    variance-minimisation sense, regardless of expected returns.
+
+    Args:
+        expected_returns: Annualized expected return vector of shape (n,).
+            Used only to populate result metrics, not in the optimization.
+        cov: Annualized covariance matrix of shape (n, n).
+        asset_names: Asset identifiers in the same order as ``expected_returns``.
+        risk_free_rate: Annual risk-free rate for Sharpe ratio computation.
+        long_only: If True, restrict weights to [0, 1]; otherwise [-1, 1].
+
+    Returns:
+        OptimizationResult with the minimum-variance weights.
+    """
     n = len(expected_returns)
     w0 = np.full(n, 1.0 / n)
     res = minimize(
@@ -83,7 +129,29 @@ def max_sharpe(
     risk_free_rate: float = 0.0,
     long_only: bool = True,
 ) -> OptimizationResult:
-    """Maximum Sharpe ratio portfolio."""
+    """Find the portfolio with the highest Sharpe ratio (tangency portfolio).
+
+    Solves::
+
+        max  (w' mu - r_f) / sqrt(w' Sigma w)
+        s.t. sum(w) = 1,  w_i >= 0  (if long_only)
+
+    This is a non-convex problem; SLSQP finds a local optimum.  The result is
+    highly sensitive to the expected-return estimates: small errors in ``mu``
+    can lead to extreme weight concentrations.  Consider using ``min_variance``
+    or ``risk_parity`` when returns are difficult to estimate reliably.
+
+    Args:
+        expected_returns: Annualized expected return vector of shape (n,).
+        cov: Annualized covariance matrix of shape (n, n).
+        asset_names: Asset identifiers.
+        risk_free_rate: Annual risk-free rate (subtracted from portfolio return
+            before dividing by volatility).
+        long_only: If True, restrict weights to [0, 1]; otherwise [-1, 1].
+
+    Returns:
+        OptimizationResult with the maximum-Sharpe weights.
+    """
     n = len(expected_returns)
     w0 = np.full(n, 1.0 / n)
 
@@ -113,7 +181,31 @@ def efficient_return(
     risk_free_rate: float = 0.0,
     long_only: bool = True,
 ) -> OptimizationResult:
-    """Minimum variance portfolio achieving at least target_return."""
+    """Find the minimum-variance portfolio that achieves a given return target.
+
+    Solves::
+
+        min  w' Sigma w
+        s.t. sum(w) = 1
+             w' mu = target_return
+             w_i >= 0  (if long_only)
+
+    This is the building block for ``efficient_frontier``: by sweeping
+    ``target_return`` from the minimum-variance return to the maximum asset
+    return, the full efficient frontier is traced.
+
+    Args:
+        expected_returns: Annualized expected return vector of shape (n,).
+        cov: Annualized covariance matrix of shape (n, n).
+        target_return: Annualized return target.  Must lie between the
+            minimum-variance portfolio return and ``max(expected_returns)``.
+        asset_names: Asset identifiers.
+        risk_free_rate: Annual risk-free rate for Sharpe ratio computation.
+        long_only: If True, restrict weights to [0, 1]; otherwise [-1, 1].
+
+    Returns:
+        OptimizationResult; check ``.success`` if the target is infeasible.
+    """
     n = len(expected_returns)
     w0 = np.full(n, 1.0 / n)
     constraints: list[dict[str, Any]] = [
@@ -137,7 +229,35 @@ def risk_parity(
     expected_returns: NDArray[np.float64] | None = None,
     risk_free_rate: float = 0.0,
 ) -> OptimizationResult:
-    """Equal risk contribution (risk parity) portfolio."""
+    """Find the equal risk contribution (risk parity) portfolio.
+
+    Each asset contributes an equal fraction (1/n) of total portfolio variance.
+    The risk contribution of asset *i* is::
+
+        RC_i = w_i * (Sigma w)_i / (w' Sigma w)
+
+    The objective minimises the sum of squared deviations from ``1/n``::
+
+        min  sum_i (RC_i - 1/n)^2
+
+    Risk parity ignores expected returns entirely, making it more robust than
+    mean-variance optimisation when return forecasts are unreliable.  It
+    typically produces well-diversified portfolios that are less concentrated
+    than minimum-variance solutions.
+
+    A small lower bound of 1e-6 on weights is enforced for numerical stability
+    of the risk-contribution formula (avoids division by near-zero variance).
+
+    Args:
+        cov: Annualized covariance matrix of shape (n, n).
+        asset_names: Asset identifiers.
+        expected_returns: Optional annualized return vector.  Used only to
+            compute Sharpe ratio in the result; ignored during optimization.
+        risk_free_rate: Annual risk-free rate for Sharpe ratio computation.
+
+    Returns:
+        OptimizationResult with equal risk contribution weights.
+    """
     n = cov.shape[0]
     mu = expected_returns if expected_returns is not None else np.zeros(n)
     w0 = np.full(n, 1.0 / n)
@@ -170,7 +290,29 @@ def efficient_frontier(
     risk_free_rate: float = 0.0,
     long_only: bool = True,
 ) -> EfficientFrontier:
-    """Trace the efficient frontier from minimum-variance to maximum-return."""
+    """Trace the efficient frontier from minimum-variance to maximum-return.
+
+    Sweeps ``n_points`` evenly spaced return targets between the return of the
+    minimum-variance portfolio and ``max(expected_returns)``, solving
+    ``efficient_return`` at each target.  Points that fail to converge are
+    silently dropped.
+
+    The resulting curve is the set of all portfolios that maximise expected
+    return for a given level of risk (or equivalently minimise risk for a given
+    level of return).  Portfolios below the frontier are suboptimal.
+
+    Args:
+        expected_returns: Annualized expected return vector of shape (n,).
+        cov: Annualized covariance matrix of shape (n, n).
+        asset_names: Asset identifiers.
+        n_points: Number of frontier points to compute.
+        risk_free_rate: Annual risk-free rate for Sharpe ratio computation.
+        long_only: If True, restrict weights to [0, 1]; otherwise [-1, 1].
+
+    Returns:
+        EfficientFrontier dataclass containing arrays of returns, volatilities,
+        Sharpe ratios, and weights for all successfully converged points.
+    """
     mv = min_variance(expected_returns, cov, asset_names, risk_free_rate, long_only)
     max_ret = float(np.max(expected_returns))
     target_rets = np.linspace(mv.expected_return, max_ret, n_points)
