@@ -19,10 +19,8 @@ State-space model
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Result containers
@@ -91,7 +89,7 @@ class KalmanFilter:
         R: np.ndarray,
         x0: np.ndarray,
         P0: np.ndarray,
-        B: Optional[np.ndarray] = None,
+        B: np.ndarray | None = None,
     ) -> None:
         self.F = np.asarray(F, dtype=float)
         self.H = np.asarray(H, dtype=float)
@@ -158,7 +156,7 @@ class KalmanFilter:
     def covariance(self) -> np.ndarray:
         return self.P.copy()
 
-    def reset(self, x0: Optional[np.ndarray] = None, P0: Optional[np.ndarray] = None) -> None:
+    def reset(self, x0: np.ndarray | None = None, P0: np.ndarray | None = None) -> None:
         """Reset state to constructor defaults (or supplied values)."""
         self.x = np.asarray(x0, dtype=float).ravel() if x0 is not None else self._x0.copy()
         self.P = np.asarray(P0, dtype=float) if P0 is not None else self._P0.copy()
@@ -168,7 +166,7 @@ class KalmanFilter:
     # Single-step interface
     # ------------------------------------------------------------------
 
-    def predict(self, u: Optional[np.ndarray] = None) -> tuple[np.ndarray, np.ndarray]:
+    def predict(self, u: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
         """
         Time-update (prediction) step.
 
@@ -237,9 +235,9 @@ class KalmanFilter:
     def filter(
         self,
         observations: np.ndarray,
-        controls: Optional[np.ndarray] = None,
-        x0: Optional[np.ndarray] = None,
-        P0: Optional[np.ndarray] = None,
+        controls: np.ndarray | None = None,
+        x0: np.ndarray | None = None,
+        P0: np.ndarray | None = None,
     ) -> FilterResult:
         """
         Forward Kalman filter pass over a full observation sequence.
@@ -362,8 +360,8 @@ class KalmanFilter:
     def log_likelihood(
         self,
         observations: np.ndarray,
-        x0: Optional[np.ndarray] = None,
-        P0: Optional[np.ndarray] = None,
+        x0: np.ndarray | None = None,
+        P0: np.ndarray | None = None,
     ) -> float:
         """
         Total log-likelihood of an observation sequence under the current model.

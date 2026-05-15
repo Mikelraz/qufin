@@ -17,8 +17,8 @@ Coverage
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 
 import numpy as np
 import pandas as pd
@@ -26,14 +26,13 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from src.models.ou_process import OrnsteinUhlenbeck
 from src.strategies.mean_reversion import (
+    BacktestResult,
     MeanReversionStrategy,
     StrategyParams,
-    BacktestResult,
     TrainResult,
 )
-from src.models.ou_process import OrnsteinUhlenbeck
-
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers

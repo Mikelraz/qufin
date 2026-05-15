@@ -11,8 +11,8 @@ Correctness benchmarks:
   - Control input B @ u is applied correctly
 """
 
-import sys
 import os
+import sys
 
 import numpy as np
 import pytest
@@ -20,8 +20,7 @@ import pytest
 # Allow importing from src/ without an installed package
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from src.filters.kalman import KalmanFilter, FilterResult, SmootherResult
-
+from src.filters.kalman import FilterResult, KalmanFilter, SmootherResult
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers

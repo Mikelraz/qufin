@@ -9,7 +9,7 @@ Exports:
     TrendFilter     - Constant-velocity smoother for price/return series
 """
 
-from .kalman import KalmanFilter, FilterResult, SmootherResult
+from .kalman import FilterResult, KalmanFilter, SmootherResult
 from .models import HedgeRatioFilter, TrendFilter
 
 __all__ = [

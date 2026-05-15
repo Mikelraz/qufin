@@ -1,9 +1,9 @@
 """Trading strategy implementations"""
 
 from .mean_reversion import (
+    BacktestResult,
     MeanReversionStrategy,
     StrategyParams,
-    BacktestResult,
     TrainResult,
 )
 

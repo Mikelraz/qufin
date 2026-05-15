@@ -21,8 +21,8 @@ Correctness benchmarks
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 import warnings
 
 import numpy as np
@@ -31,7 +31,6 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from src.models.ou_process import OrnsteinUhlenbeck, OUFitResult
-
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers

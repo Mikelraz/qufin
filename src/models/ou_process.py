@@ -29,11 +29,9 @@ Applications
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 from scipy import optimize, stats
-
 
 # ---------------------------------------------------------------------------
 # Result container
@@ -108,18 +106,18 @@ class OrnsteinUhlenbeck:
 
     def __init__(
         self,
-        theta: Optional[float] = None,
-        mu: Optional[float] = None,
-        sigma: Optional[float] = None,
+        theta: float | None = None,
+        mu: float | None = None,
+        sigma: float | None = None,
         dt: float = 1.0,
     ) -> None:
         if dt <= 0:
             raise ValueError("dt must be positive.")
         self.dt = float(dt)
-        self._theta: Optional[float] = None
-        self._mu: Optional[float] = None
-        self._sigma: Optional[float] = None
-        self._fit_result: Optional[OUFitResult] = None
+        self._theta: float | None = None
+        self._mu: float | None = None
+        self._sigma: float | None = None
+        self._fit_result: OUFitResult | None = None
 
         if theta is not None:
             self.theta = theta
@@ -337,9 +335,9 @@ class OrnsteinUhlenbeck:
     def simulate(
         self,
         n_steps: int,
-        x0: Optional[float] = None,
+        x0: float | None = None,
         n_paths: int = 1,
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ) -> np.ndarray:
         """
         Simulate exact (discretisation-error-free) OU paths.
@@ -456,7 +454,7 @@ class OrnsteinUhlenbeck:
         dist = stats.norm(loc=self._mu, scale=self.stationary_std)
         return float(dist.cdf(upper) - dist.cdf(lower))
 
-    def expected_crossing_time(self, x0: float, target: Optional[float] = None) -> float:
+    def expected_crossing_time(self, x0: float, target: float | None = None) -> float:
         """
         Approximate expected time to reach ``target`` (default: μ) from ``x0``.
 

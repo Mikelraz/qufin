@@ -52,7 +52,6 @@ the annualised Sharpe ratio, or ``fit(method='likelihood')`` optimises
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -156,7 +155,7 @@ class BacktestResult:
     signal: np.ndarray       # (T,) position ∈ {−1, 0, +1}
     log_returns: np.ndarray  # (T−1,) signal[t] × Δ log(price[t+1])
     prices: np.ndarray       # (T,) original prices
-    index: Optional[object] = None   # original pd.Index if input was a Series
+    index: object | None = None   # original pd.Index if input was a Series
 
     # ------------------------------------------------------------------
 
@@ -287,14 +286,14 @@ class MeanReversionStrategy:
             send_order(state['signal'])
     """
 
-    def __init__(self, params: Optional[StrategyParams] = None) -> None:
+    def __init__(self, params: StrategyParams | None = None) -> None:
         self.params: StrategyParams = params if params is not None else StrategyParams()
 
         # Online-mode state (mutated by step())
         self._initialized: bool = False
         self._warmup_buffer: list[float] = []
-        self._kf: Optional[KalmanFilter] = None
-        self._prev_price: Optional[float] = None
+        self._kf: KalmanFilter | None = None
+        self._prev_price: float | None = None
         self._innovations: list[float] = []
         self._cur_pos: float = 0.0
 
@@ -508,7 +507,7 @@ class MeanReversionStrategy:
 
     def run(
         self,
-        prices: Union[np.ndarray, "pd.Series"],
+        prices: np.ndarray | pd.Series,
     ) -> BacktestResult:
         """
         Batch causal backtest on a price series.
@@ -651,7 +650,7 @@ class MeanReversionStrategy:
 
     def fit(
         self,
-        prices: Union[np.ndarray, "pd.Series"],
+        prices: np.ndarray | pd.Series,
         method: str = "sharpe",
         train_frac: float = 1.0,
         n_restarts: int = 5,
@@ -739,7 +738,7 @@ class MeanReversionStrategy:
     ) -> TrainResult:
         rng = np.random.default_rng(42)
         best_neg_sharpe = np.inf
-        best_result: Optional[optimize.OptimizeResult] = None
+        best_result: optimize.OptimizeResult | None = None
 
         # Encode current params as starting point
         p0 = self.params

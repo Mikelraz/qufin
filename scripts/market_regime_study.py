@@ -6,8 +6,9 @@ unobservable market regimes (e.g., Bull vs. Bear markets) from financial data.
 It fits a 2-state GHMM to daily log returns.
 """
 
-import sys
 import os
+import sys
+
 import numpy as np
 from scipy.stats import multivariate_normal
 
@@ -16,15 +17,15 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from qufin.markov import ghmm
 
 try:
-    import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
+    import matplotlib.pyplot as plt
 except ImportError:
     print("This script requires 'matplotlib'. Install it via: pip install matplotlib")
     sys.exit(1)
 
 try:
-    import yfinance as yf
     import pandas as pd
+    import yfinance as yf
     HAS_YFINANCE = True
 except ImportError:
     print("Missing 'yfinance' or 'pandas'. Using synthetic financial data instead.")
@@ -123,11 +124,11 @@ def main():
     ann_mean_low = means[low_vol_state] * 252
     ann_vol_low = vols[low_vol_state] * np.sqrt(252)
     
-    print(f"\nRegime 'Low Volatility' (Bull Market):")
+    print("\nRegime 'Low Volatility' (Bull Market):")
     print(f"  Annualized Mean Return: {ann_mean_low:+.2%}")
     print(f"  Annualized Volatility:  {ann_vol_low:.2%}")
     
-    print(f"\nRegime 'High Volatility' (Bear Market):")
+    print("\nRegime 'High Volatility' (Bear Market):")
     print(f"  Annualized Mean Return: {ann_mean_high:+.2%}")
     print(f"  Annualized Volatility:  {ann_vol_high:.2%}")
 

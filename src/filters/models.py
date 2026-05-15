@@ -14,13 +14,10 @@ TrendFilter
 
 from __future__ import annotations
 
-from typing import Optional, Union
-
 import numpy as np
 import pandas as pd
 
-from .kalman import KalmanFilter, FilterResult, SmootherResult
-
+from .kalman import FilterResult, KalmanFilter, SmootherResult
 
 # ---------------------------------------------------------------------------
 # HedgeRatioFilter
@@ -60,8 +57,8 @@ class HedgeRatioFilter:
         self,
         delta: float = 1e-4,
         obs_var: float = 1.0,
-        x0: Optional[np.ndarray] = None,
-        P0: Optional[np.ndarray] = None,
+        x0: np.ndarray | None = None,
+        P0: np.ndarray | None = None,
     ) -> None:
         if delta <= 0:
             raise ValueError("delta must be positive.")
@@ -137,8 +134,8 @@ class HedgeRatioFilter:
 
     def reset(
         self,
-        x0: Optional[np.ndarray] = None,
-        P0: Optional[np.ndarray] = None,
+        x0: np.ndarray | None = None,
+        P0: np.ndarray | None = None,
     ) -> None:
         """Reinitialise the filter to its initial conditions."""
         _x0 = self._kf._x0 if x0 is None else np.asarray(x0, dtype=float).ravel()
@@ -152,11 +149,11 @@ class HedgeRatioFilter:
 
     def filter(
         self,
-        y: Union[np.ndarray, "pd.Series"],
-        x: Union[np.ndarray, "pd.Series"],
-        x0: Optional[np.ndarray] = None,
-        P0: Optional[np.ndarray] = None,
-    ) -> "pd.DataFrame":
+        y: np.ndarray | pd.Series,
+        x: np.ndarray | pd.Series,
+        x0: np.ndarray | None = None,
+        P0: np.ndarray | None = None,
+    ) -> pd.DataFrame:
         """
         Run the filter over full price/return series.
 
@@ -280,9 +277,9 @@ class TrendFilter:
 
     def filter(
         self,
-        prices: Union[np.ndarray, "pd.Series"],
+        prices: np.ndarray | pd.Series,
         smooth: bool = False,
-    ) -> "pd.DataFrame":
+    ) -> pd.DataFrame:
         """
         Filter (and optionally smooth) a price or return series.
 
@@ -337,7 +334,7 @@ class TrendFilter:
 
     def log_likelihood(
         self,
-        prices: Union[np.ndarray, "pd.Series"],
+        prices: np.ndarray | pd.Series,
     ) -> float:
         """Log-likelihood of the price series under the current model parameters."""
         arr = np.asarray(prices, dtype=float)
