@@ -30,9 +30,9 @@ from dataclasses import dataclass
 import numpy as np
 import polars as pl
 
-from ..filters.kalman import FilterResult, KalmanFilter, SmootherResult
 from ._io import to_numpy_1d, validate_min_length
 from .arima import ARMAFitResult, _arma_state_space, _p0_lyapunov
+from .kalman import FilterResult, KalmanFilter, SmootherResult
 
 # ---------------------------------------------------------------------------
 # Result container

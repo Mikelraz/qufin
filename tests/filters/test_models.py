@@ -22,7 +22,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from src.filters.models import HedgeRatioFilter, TrendFilter
+from src.timeseries.models import HedgeRatioFilter, TrendFilter
 
 
 RNG = np.random.default_rng(0)

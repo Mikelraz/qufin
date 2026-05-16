@@ -20,7 +20,7 @@ import pytest
 # Allow importing from src/ without an installed package
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from src.filters.kalman import KalmanFilter, FilterResult, SmootherResult
+from src.timeseries.kalman import KalmanFilter, FilterResult, SmootherResult
 
 
 # ---------------------------------------------------------------------------

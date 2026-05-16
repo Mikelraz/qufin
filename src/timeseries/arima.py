@@ -130,7 +130,7 @@ def _p0_lyapunov(f_mat: np.ndarray, q_mat: np.ndarray, r: int) -> np.ndarray:
 
 def _arma_log_likelihood(phi: np.ndarray, theta: np.ndarray, sigma2: float, y: np.ndarray) -> float:
     """Exact log-likelihood for ARMA(p, q) via KalmanFilter."""
-    from ..filters.kalman import KalmanFilter  # lazy import — avoids circular dep
+    from .kalman import KalmanFilter  # lazy import — avoids circular dep
 
     f_mat, h_mat, q_mat, r_mat, r = _arma_state_space(phi, theta, sigma2)
     p0 = _p0_lyapunov(f_mat, q_mat, r)

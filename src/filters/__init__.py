@@ -1,16 +1,17 @@
 """
-Linear Kalman Filter subpackage for financial time series.
+Linear Kalman Filter subpackage — backward-compatible re-exports.
 
-Exports:
-    KalmanFilter    - General-purpose linear Kalman filter with RTS smoother
-    FilterResult    - Dataclass holding forward-pass outputs
-    SmootherResult  - Dataclass holding backward-smoother outputs
-    HedgeRatioFilter - Tracks a time-varying hedge ratio (beta + intercept)
-    TrendFilter     - Constant-velocity smoother for price/return series
+The implementation has moved to ``src.timeseries``.  This package re-exports
+everything so that existing code importing from ``src.filters`` continues to work.
+
+Preferred import going forward::
+
+    from src.timeseries.kalman import KalmanFilter, FilterResult, SmootherResult
+    from src.timeseries.models import HedgeRatioFilter, TrendFilter
 """
 
-from .kalman import KalmanFilter, FilterResult, SmootherResult
-from .models import HedgeRatioFilter, TrendFilter
+from ..timeseries.kalman import FilterResult, KalmanFilter, SmootherResult
+from ..timeseries.models import HedgeRatioFilter, TrendFilter
 
 __all__ = [
     "KalmanFilter",

@@ -58,7 +58,7 @@ import numpy as np
 import pandas as pd
 from scipy import optimize
 
-from ..filters.kalman import KalmanFilter
+from ..timeseries.kalman import KalmanFilter
 
 _ANNUAL = np.sqrt(252)   # annualisation for daily Sharpe
 _LOG_2PI = np.log(2.0 * np.pi)

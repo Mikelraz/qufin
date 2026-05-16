@@ -1,6 +1,11 @@
 """
 Time-series modelling subpackage.
 
+Kalman filter (moved from src.filters)
+---------------------------------------
+    kalman        KalmanFilter, FilterResult, SmootherResult
+    models        HedgeRatioFilter, TrendFilter
+
 Phase 1 — foundations
 ---------------------
     _types        Protocols and shared result containers (ForecastResult, BacktestEvalResult)
@@ -47,6 +52,8 @@ from .diagnostics import (
     ljung_box,
     pacf,
 )
+from .kalman import FilterResult, KalmanFilter, SmootherResult
+from .models import HedgeRatioFilter, TrendFilter
 from .statespace import ARMAStateSpace, StateSpaceResult
 from .stationarity import (
     ADFResult,
@@ -71,6 +78,13 @@ __all__ = [
     "ForecastResult",
     "HasInfoCriteria",
     "HasResiduals",
+    # Kalman filter
+    "FilterResult",
+    "KalmanFilter",
+    "SmootherResult",
+    # Pre-built models
+    "HedgeRatioFilter",
+    "TrendFilter",
     # ARMA family
     "AR",
     "ARIMA",
