@@ -10,8 +10,13 @@ Phase 1 — foundations
     stationarity  ADF, KPSS, Phillips-Perron, variance-ratio tests
     diagnostics   Ljung-Box, Jarque-Bera, ARCH-LM, ACF / PACF with confidence bands
 
-Future phases will add ARMA / ARIMA / SARIMA (Phase 2), VAR + cointegration
-(Phase 3), GARCH family (Phase 4), DCC / regime / forecast evaluation (Phase 5).
+Phase 2 — ARMA family + state-space wrapper
+--------------------------------------------
+    arima         AR, MA, ARMA, ARIMA, SARIMA (estimation, forecasting, simulation)
+    statespace    ARMAStateSpace (Kalman filter + RTS smoother over ARMA observations)
+
+Future phases will add VAR + cointegration (Phase 3), GARCH family (Phase 4),
+DCC / regime / forecast evaluation (Phase 5).
 """
 
 from __future__ import annotations
@@ -22,6 +27,18 @@ from ._types import (
     HasInfoCriteria,
     HasResiduals,
 )
+from .arima import (
+    AR,
+    ARIMA,
+    ARMA,
+    MA,
+    SARIMA,
+    ARFitResult,
+    ARIMAFitResult,
+    ARMAFitResult,
+    MAFitResult,
+    SARIMAFitResult,
+)
 from .diagnostics import (
     ACFResult,
     acf,
@@ -30,6 +47,7 @@ from .diagnostics import (
     ljung_box,
     pacf,
 )
+from .statespace import ARMAStateSpace, StateSpaceResult
 from .stationarity import (
     ADFResult,
     KPSSResult,
@@ -53,6 +71,20 @@ __all__ = [
     "ForecastResult",
     "HasInfoCriteria",
     "HasResiduals",
+    # ARMA family
+    "AR",
+    "ARIMA",
+    "ARMA",
+    "MA",
+    "SARIMA",
+    "ARFitResult",
+    "ARIMAFitResult",
+    "ARMAFitResult",
+    "MAFitResult",
+    "SARIMAFitResult",
+    # State-space
+    "ARMAStateSpace",
+    "StateSpaceResult",
     # Diagnostics
     "ACFResult",
     "acf",
