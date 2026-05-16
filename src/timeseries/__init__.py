@@ -25,8 +25,11 @@ Phase 3 — VAR + cointegration
     var           VAR(p), Granger causality, impulse response functions
     cointegration Engle-Granger, Johansen, VECM
 
-Future phases will add GARCH family (Phase 4), DCC / regime / forecast
-evaluation (Phase 5).
+Phase 4 — GARCH family
+----------------------
+    garch         GARCH, EGARCH, GJR, EWMA (single-asset volatility models)
+
+Future phases will add DCC / regime / forecast evaluation (Phase 5).
 """
 
 from __future__ import annotations
@@ -64,6 +67,16 @@ from .diagnostics import (
     jarque_bera,
     ljung_box,
     pacf,
+)
+from .garch import (
+    EGARCH,
+    EWMA,
+    GARCH,
+    GJR,
+    EGARCHFitResult,
+    EWMAResult,
+    GARCHFitResult,
+    GJRFitResult,
 )
 from .kalman import FilterResult, KalmanFilter, SmootherResult
 from .models import HedgeRatioFilter, TrendFilter
@@ -132,6 +145,15 @@ __all__ = [
     "johansen",
     "VECMResult",
     "vecm",
+    # GARCH family
+    "GARCH",
+    "GARCHFitResult",
+    "EGARCH",
+    "EGARCHFitResult",
+    "GJR",
+    "GJRFitResult",
+    "EWMA",
+    "EWMAResult",
     # Diagnostics
     "ACFResult",
     "acf",
