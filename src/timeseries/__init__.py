@@ -1,8 +1,8 @@
 """
 Time-series modelling subpackage.
 
-Kalman filter (moved from src.filters)
----------------------------------------
+Kalman filter
+-------------
     kalman        KalmanFilter, FilterResult, SmootherResult
     models        HedgeRatioFilter, TrendFilter
 

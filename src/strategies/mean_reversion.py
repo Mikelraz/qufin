@@ -14,7 +14,7 @@ Step 1 — Online state estimation
         X_t  =  β_t · X_{t-1}  +  α_t  +  ε_t,     ε_t ~ N(0, obs_var)
         [β_t, α_t]  =  [β_{t-1}, α_{t-1}]  +  w_t,  w_t ~ N(0, δ·I₂)
 
-    This is the HedgeRatioFilter from src.filters applied to the series
+    This is the HedgeRatioFilter from src.timeseries applied to the series
     against its own lag, giving the OU parameters in closed form:
 
         θ_t  = −ln(β_t) / Δt           (mean-reversion speed)
