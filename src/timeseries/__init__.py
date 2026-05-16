@@ -20,8 +20,13 @@ Phase 2 — ARMA family + state-space wrapper
     arima         AR, MA, ARMA, ARIMA, SARIMA (estimation, forecasting, simulation)
     statespace    ARMAStateSpace (Kalman filter + RTS smoother over ARMA observations)
 
-Future phases will add VAR + cointegration (Phase 3), GARCH family (Phase 4),
-DCC / regime / forecast evaluation (Phase 5).
+Phase 3 — VAR + cointegration
+-----------------------------
+    var           VAR(p), Granger causality, impulse response functions
+    cointegration Engle-Granger, Johansen, VECM
+
+Future phases will add GARCH family (Phase 4), DCC / regime / forecast
+evaluation (Phase 5).
 """
 
 from __future__ import annotations
@@ -43,6 +48,14 @@ from .arima import (
     ARMAFitResult,
     MAFitResult,
     SARIMAFitResult,
+)
+from .cointegration import (
+    EngleGrangerResult,
+    JohansenResult,
+    VECMResult,
+    engle_granger,
+    johansen,
+    vecm,
 )
 from .diagnostics import (
     ACFResult,
@@ -70,6 +83,13 @@ from .utils import (
     info_criteria,
     inverse_difference,
     seasonal_difference,
+)
+from .var import (
+    VAR,
+    GrangerResult,
+    VARFitResult,
+    granger_causality,
+    impulse_response,
 )
 
 __all__ = [
@@ -99,6 +119,19 @@ __all__ = [
     # State-space
     "ARMAStateSpace",
     "StateSpaceResult",
+    # VAR
+    "VAR",
+    "VARFitResult",
+    "GrangerResult",
+    "granger_causality",
+    "impulse_response",
+    # Cointegration
+    "EngleGrangerResult",
+    "engle_granger",
+    "JohansenResult",
+    "johansen",
+    "VECMResult",
+    "vecm",
     # Diagnostics
     "ACFResult",
     "acf",
