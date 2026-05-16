@@ -29,7 +29,11 @@ Phase 4 — GARCH family
 ----------------------
     garch         GARCH, EGARCH, GJR, EWMA (single-asset volatility models)
 
-Future phases will add DCC / regime / forecast evaluation (Phase 5).
+Phase 5 — DCC, regime, forecast evaluation
+------------------------------------------
+    garch         DCC (multivariate Dynamic Conditional Correlation GARCH)
+    regime        MarkovSwitchingAR (Hamilton filter + Baum-Welch EM)
+    forecast_eval RollingBacktest, Diebold-Mariano, error metrics, CRPS
 """
 
 from __future__ import annotations
@@ -68,11 +72,23 @@ from .diagnostics import (
     ljung_box,
     pacf,
 )
+from .forecast_eval import (
+    DMResult,
+    RollingBacktest,
+    crps,
+    diebold_mariano,
+    mae,
+    mape,
+    mase,
+    rmse,
+)
 from .garch import (
+    DCC,
     EGARCH,
     EWMA,
     GARCH,
     GJR,
+    DCCFitResult,
     EGARCHFitResult,
     EWMAResult,
     GARCHFitResult,
@@ -80,6 +96,7 @@ from .garch import (
 )
 from .kalman import FilterResult, KalmanFilter, SmootherResult
 from .models import HedgeRatioFilter, TrendFilter
+from .regime import MarkovSwitchingAR, MSARFitResult
 from .statespace import ARMAStateSpace, StateSpaceResult
 from .stationarity import (
     ADFResult,
@@ -154,6 +171,20 @@ __all__ = [
     "GJRFitResult",
     "EWMA",
     "EWMAResult",
+    "DCC",
+    "DCCFitResult",
+    # Regime-switching
+    "MarkovSwitchingAR",
+    "MSARFitResult",
+    # Forecast evaluation
+    "RollingBacktest",
+    "DMResult",
+    "diebold_mariano",
+    "rmse",
+    "mae",
+    "mape",
+    "mase",
+    "crps",
     # Diagnostics
     "ACFResult",
     "acf",
