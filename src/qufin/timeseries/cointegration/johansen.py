@@ -157,7 +157,7 @@ def _pvalue_from_crits(stat: float, crits_at_10_5_1: tuple[float, float, float])
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class JohansenResult:
     """Johansen test result.
 

@@ -1,5 +1,5 @@
 """
-Tests for src.filters.models — HedgeRatioFilter and TrendFilter.
+Tests for qufin.timeseries.models — HedgeRatioFilter and TrendFilter.
 
 Correctness benchmarks:
   - HedgeRatioFilter recovers a known constant hedge ratio
@@ -10,19 +10,14 @@ Correctness benchmarks:
   - TrendFilter velocity estimates match finite differences on smooth signals
   - TrendFilter RTS smooth reduces variance vs forward filter
   - Both models handle NaN (missing) observations
-  - API: DataFrame columns, index propagation, reset behaviour
+  - API: DataFrame columns, polars Series input, reset behaviour
 """
 
-import os
-import sys
-
 import numpy as np
-import pandas as pd
+import polars as pl
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.filters.models import HedgeRatioFilter, TrendFilter
+from qufin.timeseries.models import HedgeRatioFilter, TrendFilter
 
 RNG = np.random.default_rng(0)
 
@@ -95,12 +90,11 @@ class TestHedgeRatioFilterStep:
 
     def test_step_spread_is_innovation(self):
         """spread = y - beta_pred * x - alpha_pred (pre-update prediction error)."""
-        f = HedgeRatioFilter(delta=1e-6)  # very slow drift
+        f = HedgeRatioFilter(delta=1e-6)
         y_arr, x_arr = synthetic_pairs(T=200, beta_true=1.5, alpha_true=0.0)
-        # After warm-up, the spread should be small
         for t in range(200):
             _, _, spread = f.step(float(y_arr[t]), float(x_arr[t]))
-        assert abs(spread) < 5.0  # loosely bounded
+        assert abs(spread) < 5.0
 
     def test_beta_variance_positive(self):
         f = HedgeRatioFilter()
@@ -127,22 +121,24 @@ class TestHedgeRatioFilterAccuracy:
         y, x = synthetic_pairs(T=400, beta_true=beta_true, sigma_eps=0.3)
         f = HedgeRatioFilter(delta=1e-5, obs_var=0.09)
         df = f.filter(y, x)
-        # Check last 100 steps
-        assert df["beta"].iloc[-100:].mean() == pytest.approx(beta_true, abs=0.10)
+        beta_tail = df["beta"].to_numpy()[-100:]
+        assert float(beta_tail.mean()) == pytest.approx(beta_true, abs=0.10)
 
     def test_recovers_constant_alpha(self):
         alpha_true = 3.5
         y, x = synthetic_pairs(T=400, beta_true=1.0, alpha_true=alpha_true, sigma_eps=0.3)
         f = HedgeRatioFilter(delta=1e-5, obs_var=0.09)
         df = f.filter(y, x)
-        assert df["alpha"].iloc[-100:].mean() == pytest.approx(alpha_true, abs=0.30)
+        alpha_tail = df["alpha"].to_numpy()[-100:]
+        assert float(alpha_tail.mean()) == pytest.approx(alpha_true, abs=0.30)
 
     def test_tracks_drifting_beta(self):
         """Filter beta should correlate highly with the true drifting beta."""
         y, x, betas_true = drifting_beta_pairs(T=600)
         f = HedgeRatioFilter(delta=5e-4, obs_var=0.09)
         df = f.filter(y, x)
-        corr = np.corrcoef(df["beta"].values[100:], betas_true[100:])[0, 1]
+        beta_arr = df["beta"].to_numpy()
+        corr = np.corrcoef(beta_arr[100:], betas_true[100:])[0, 1]
         assert corr > 0.85, f"Correlation with drifting beta too low: {corr:.3f}"
 
 
@@ -162,9 +158,9 @@ class TestHedgeRatioFilterConsistency:
             b, a, s = f2.step(float(yi), float(xi))
             betas.append(b); alphas.append(a); spreads.append(s)
 
-        np.testing.assert_allclose(df["beta"].values,   betas,   atol=1e-12)
-        np.testing.assert_allclose(df["alpha"].values,  alphas,  atol=1e-12)
-        np.testing.assert_allclose(df["spread"].values, spreads, atol=1e-12)
+        np.testing.assert_allclose(df["beta"].to_numpy(),   betas,   atol=1e-12)
+        np.testing.assert_allclose(df["alpha"].to_numpy(),  alphas,  atol=1e-12)
+        np.testing.assert_allclose(df["spread"].to_numpy(), spreads, atol=1e-12)
 
 
 # ---------------------------------------------------------------------------
@@ -172,11 +168,11 @@ class TestHedgeRatioFilterConsistency:
 # ---------------------------------------------------------------------------
 
 class TestHedgeRatioFilterDataFrameAPI:
-    def test_returns_dataframe(self):
+    def test_returns_polars_dataframe(self):
         f = HedgeRatioFilter()
         y, x = synthetic_pairs(T=50)
         result = f.filter(y, x)
-        assert isinstance(result, pd.DataFrame)
+        assert isinstance(result, pl.DataFrame)
 
     def test_expected_columns(self):
         f = HedgeRatioFilter()
@@ -185,20 +181,20 @@ class TestHedgeRatioFilterDataFrameAPI:
         for col in ["beta", "alpha", "spread", "beta_std", "alpha_std"]:
             assert col in df.columns
 
-    def test_index_propagated_from_series(self):
-        idx = pd.date_range("2020-01-01", periods=80, freq="B")
-        y = pd.Series(RNG.normal(size=80), index=idx)
-        x = pd.Series(RNG.normal(size=80) + 5, index=idx)
+    def test_polars_series_input_accepted(self):
+        y_np, x_np = synthetic_pairs(T=80)
+        y_pl = pl.Series("y", y_np)
+        x_pl = pl.Series("x", x_np)
         f = HedgeRatioFilter()
-        df = f.filter(y, x)
-        assert list(df.index) == list(idx)
+        df = f.filter(y_pl, x_pl)
+        assert df.height == 80
 
     def test_std_columns_nonnegative(self):
         f = HedgeRatioFilter()
         y, x = synthetic_pairs(T=100)
         df = f.filter(y, x)
-        assert np.all(df["beta_std"].values >= 0)
-        assert np.all(df["alpha_std"].values >= 0)
+        assert np.all(df["beta_std"].to_numpy() >= 0)
+        assert np.all(df["alpha_std"].to_numpy() >= 0)
 
     def test_mismatched_lengths_raises(self):
         f = HedgeRatioFilter()
@@ -225,11 +221,11 @@ class TestTrendFilterConstruction:
 # ---------------------------------------------------------------------------
 
 class TestTrendFilterForward:
-    def test_returns_dataframe(self):
+    def test_returns_polars_dataframe(self):
         f = TrendFilter()
         prices = np.cumsum(RNG.normal(size=100)) + 100
         result = f.filter(prices)
-        assert isinstance(result, pd.DataFrame)
+        assert isinstance(result, pl.DataFrame)
 
     def test_expected_columns(self):
         f = TrendFilter()
@@ -238,25 +234,25 @@ class TestTrendFilterForward:
         for col in ["level", "velocity", "level_std", "velocity_std"]:
             assert col in df.columns
 
-    def test_index_propagated_from_series(self):
-        idx = pd.date_range("2021-06-01", periods=60, freq="D")
-        prices = pd.Series(np.cumsum(RNG.normal(size=60)) + 50, index=idx)
+    def test_polars_series_input(self):
+        prices_np = np.cumsum(RNG.normal(size=60)) + 50
+        prices = pl.Series("prices", prices_np)
         f = TrendFilter()
         df = f.filter(prices)
-        assert list(df.index) == list(idx)
+        assert df.height == 60
 
     def test_reduces_noise(self):
         """Filtered level should have lower RMSE vs truth than raw obs."""
         T = 500
         t_arr = np.arange(T, dtype=float)
-        truth = 50.0 + 0.05 * t_arr               # linear trend
+        truth = 50.0 + 0.05 * t_arr
         noisy = truth + RNG.normal(0, 2.0, T)
 
         f = TrendFilter(process_var=1e-5, obs_var=4.0)
         df = f.filter(noisy)
 
-        rmse_raw  = np.sqrt(np.mean((noisy  - truth) ** 2))
-        rmse_filt = np.sqrt(np.mean((df["level"].values - truth) ** 2))
+        rmse_raw  = float(np.sqrt(np.mean((noisy - truth) ** 2)))
+        rmse_filt = float(np.sqrt(np.mean((df["level"].to_numpy() - truth) ** 2)))
         assert rmse_filt < rmse_raw
 
     def test_velocity_sign_matches_trend(self):
@@ -264,22 +260,22 @@ class TestTrendFilterForward:
         prices = np.linspace(10.0, 50.0, 200) + RNG.normal(0, 0.1, 200)
         f = TrendFilter(process_var=1e-4, obs_var=0.01)
         df = f.filter(prices)
-        assert df["velocity"].iloc[20:].mean() > 0
+        assert float(df["velocity"].to_numpy()[20:].mean()) > 0
 
     def test_std_columns_nonnegative(self):
         prices = np.cumsum(RNG.normal(size=80)) + 100
         f = TrendFilter()
         df = f.filter(prices)
-        assert np.all(df["level_std"].values >= 0)
-        assert np.all(df["velocity_std"].values >= 0)
+        assert np.all(df["level_std"].to_numpy() >= 0)
+        assert np.all(df["velocity_std"].to_numpy() >= 0)
 
     def test_missing_observations_handled(self):
         prices = np.cumsum(RNG.normal(size=100)) + 100
         prices[30] = np.nan
         prices[60] = np.nan
         f = TrendFilter()
-        df = f.filter(prices)  # must not raise
-        assert np.all(np.isfinite(df["level"].values))
+        df = f.filter(prices)
+        assert np.all(np.isfinite(df["level"].to_numpy()))
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +287,7 @@ class TestTrendFilterSmoother:
         prices = np.cumsum(RNG.normal(size=80)) + 100
         f = TrendFilter()
         df = f.filter(prices, smooth=True)
-        assert isinstance(df, pd.DataFrame)
+        assert isinstance(df, pl.DataFrame)
 
     def test_smoother_variance_le_filter_variance(self):
         T = 300
@@ -300,11 +296,11 @@ class TestTrendFilterSmoother:
         f1 = TrendFilter(process_var=1e-4, obs_var=1.0)
         f2 = TrendFilter(process_var=1e-4, obs_var=1.0)
 
-        df_filt  = f1.filter(prices, smooth=False)
+        df_filt   = f1.filter(prices, smooth=False)
         df_smooth = f2.filter(prices, smooth=True)
 
-        filt_var   = df_filt["level_std"].values ** 2
-        smooth_var = df_smooth["level_std"].values ** 2
+        filt_var   = df_filt["level_std"].to_numpy() ** 2
+        smooth_var = df_smooth["level_std"].to_numpy() ** 2
         assert np.all(smooth_var <= filt_var + 1e-10)
 
     def test_smoother_reduces_rmse(self):
@@ -317,8 +313,8 @@ class TestTrendFilterSmoother:
         df_filt   = f1.filter(noisy, smooth=False)
         df_smooth = f2.filter(noisy, smooth=True)
 
-        rmse_filt   = np.sqrt(np.mean((df_filt["level"].values   - truth) ** 2))
-        rmse_smooth = np.sqrt(np.mean((df_smooth["level"].values - truth) ** 2))
+        rmse_filt   = float(np.sqrt(np.mean((df_filt["level"].to_numpy()   - truth) ** 2)))
+        rmse_smooth = float(np.sqrt(np.mean((df_smooth["level"].to_numpy() - truth) ** 2)))
         assert rmse_smooth <= rmse_filt + 1e-6
 
 

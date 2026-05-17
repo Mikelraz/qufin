@@ -30,7 +30,7 @@ from ..utils import info_criteria
 from ._likelihood import gjr_filter
 
 
-@dataclass
+@dataclass(slots=True)
 class GJRFitResult:
     """Fitted GJR-GARCH(p, q) model output."""
 

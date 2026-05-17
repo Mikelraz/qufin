@@ -53,7 +53,7 @@ from .utils import info_criteria
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class MSARFitResult:
     """Fitted Markov-switching AR(p) result.
 

@@ -1,20 +1,16 @@
 """
-Tests for src.timeseries.garch — GARCH, EGARCH, GJR, EWMA.
+Tests for qufin.timeseries.garch — GARCH, EGARCH, GJR, EWMA.
 """
 
 from __future__ import annotations
 
 import math
-import os
-import sys
 
 import numpy as np
 import polars as pl
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries.garch import (
+from qufin.timeseries.garch import (
     EGARCH,
     EWMA,
     GARCH,

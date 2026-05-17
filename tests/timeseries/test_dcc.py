@@ -1,21 +1,17 @@
 # ruff: noqa: NPY002, N806  — random-noise inputs in negative-path tests; T is an econometric sample-size variable
 """
-Tests for src.timeseries.garch.dcc — Engle (2002) DCC-GARCH.
+Tests for qufin.timeseries.garch.dcc — Engle (2002) DCC-GARCH.
 """
 
 from __future__ import annotations
 
 import math
-import os
-import sys
 
 import numpy as np
 import polars as pl
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries.garch import DCC, GARCH, DCCFitResult
+from qufin.timeseries.garch import DCC, GARCH, DCCFitResult
 
 RNG = np.random.default_rng(13)
 

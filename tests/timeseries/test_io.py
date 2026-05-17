@@ -1,17 +1,12 @@
-"""Tests for src.timeseries._io — numpy / polars conversion helpers."""
+"""Tests for qufin.timeseries._io — numpy / polars conversion helpers."""
 
 from __future__ import annotations
-
-import os
-import sys
 
 import numpy as np
 import polars as pl
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries._io import (
+from qufin.timeseries._io import (
     to_numpy_1d,
     to_numpy_2d,
     validate_finite,

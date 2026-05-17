@@ -43,7 +43,7 @@ from .johansen import johansen
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class VECMResult:
     """Reduced-rank VECM fit.
 

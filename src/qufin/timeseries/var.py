@@ -50,7 +50,7 @@ from .utils import info_criteria
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class VARFitResult:
     """Fitted VAR(p) model output.
 
@@ -130,7 +130,7 @@ class VARFitResult:
         return np.linalg.eigvals(self.companion_matrix())
 
 
-@dataclass
+@dataclass(slots=True)
 class GrangerResult:
     """Result of a Granger-causality test.
 

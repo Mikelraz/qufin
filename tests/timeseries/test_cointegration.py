@@ -1,19 +1,14 @@
 """
-Tests for src.timeseries.cointegration — Engle-Granger, Johansen, VECM.
+Tests for qufin.timeseries.cointegration — Engle-Granger, Johansen, VECM.
 """
 
 from __future__ import annotations
-
-import os
-import sys
 
 import numpy as np
 import polars as pl
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries.cointegration import (
+from qufin.timeseries.cointegration import (
     EngleGrangerResult,
     JohansenResult,
     VECMResult,

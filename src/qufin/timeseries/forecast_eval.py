@@ -182,7 +182,7 @@ def crps(observation: float | np.ndarray, sample: np.ndarray) -> float:
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class DMResult:
     """Diebold-Mariano (1995) test result.
 

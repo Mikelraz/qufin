@@ -112,7 +112,7 @@ def _dcc_recursion(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class DCCFitResult:
     """Fitted DCC-GARCH model output."""
 

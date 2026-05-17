@@ -39,7 +39,7 @@ from .kalman import FilterResult, KalmanFilter, SmootherResult
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class StateSpaceResult:
     """
     Combined output of a Kalman filter + RTS smoother pass.

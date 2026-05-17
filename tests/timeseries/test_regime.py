@@ -1,20 +1,16 @@
 """
-Tests for src.timeseries.regime — Markov-switching AR.
+Tests for qufin.timeseries.regime — Markov-switching AR.
 """
 
 from __future__ import annotations
 
 import math
-import os
-import sys
 
 import numpy as np
 import polars as pl
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries.regime import MarkovSwitchingAR, MSARFitResult
+from qufin.timeseries.regime import MarkovSwitchingAR, MSARFitResult
 
 RNG = np.random.default_rng(99)
 

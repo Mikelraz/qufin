@@ -1,5 +1,5 @@
 """
-Tests for src.models.ou_process — OrnsteinUhlenbeck.
+Tests for qufin.models.ou_process — OrnsteinUhlenbeck.
 
 Correctness benchmarks
 ----------------------
@@ -21,16 +21,12 @@ Correctness benchmarks
 
 from __future__ import annotations
 
-import os
-import sys
 import warnings
 
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.models.ou_process import OrnsteinUhlenbeck, OUFitResult
+from qufin.models.ou_process import OrnsteinUhlenbeck, OUFitResult
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers

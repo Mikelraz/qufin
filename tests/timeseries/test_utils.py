@@ -1,17 +1,13 @@
-"""Tests for src.timeseries.utils — differencing and info criteria."""
+"""Tests for qufin.timeseries.utils — differencing and info criteria."""
 
 from __future__ import annotations
 
 import math
-import os
-import sys
 
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries.utils import (
+from qufin.timeseries.utils import (
     difference,
     info_criteria,
     inverse_difference,

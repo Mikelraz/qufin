@@ -103,7 +103,7 @@ def _eg_pvalue(tau: float, n_reg: int, n: int) -> float:
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class EngleGrangerResult:
     """Engle-Granger two-step test result.
 

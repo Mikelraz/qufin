@@ -1,5 +1,5 @@
 """
-Tests for src.timeseries._kernels — numba-jitted numerical kernels.
+Tests for qufin.timeseries._kernels — numba-jitted numerical kernels.
 
 Correctness benchmarks
 ----------------------
@@ -14,15 +14,10 @@ Correctness benchmarks
 
 from __future__ import annotations
 
-import os
-import sys
-
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries._kernels import (
+from qufin.timeseries._kernels import (
     durbin_levinson,
     lag_matrix,
     sample_acf,

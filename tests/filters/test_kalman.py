@@ -1,5 +1,5 @@
 """
-Tests for src.filters.kalman — KalmanFilter, FilterResult, SmootherResult.
+Tests for qufin.timeseries.kalman — KalmanFilter, FilterResult, SmootherResult.
 
 Correctness benchmarks:
   - Scalar random-walk with known analytical posterior
@@ -11,16 +11,11 @@ Correctness benchmarks:
   - Control input B @ u is applied correctly
 """
 
-import os
-import sys
 
 import numpy as np
 import pytest
 
-# Allow importing from src/ without an installed package
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.filters.kalman import FilterResult, KalmanFilter, SmootherResult
+from qufin.timeseries.kalman import FilterResult, KalmanFilter, SmootherResult
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers

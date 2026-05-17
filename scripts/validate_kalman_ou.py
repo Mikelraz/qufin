@@ -1,7 +1,7 @@
 """
 Validate the Kalman Filter on synthetic OU (mean-reverting) data.
 
-Generates exact OU paths via src.models.OrnsteinUhlenbeck, corrupts them
+Generates exact OU paths via qufin.models.OrnsteinUhlenbeck, corrupts them
 with observation noise, then runs the KF in OU state-space form and checks:
 
   1. Parameter recovery   — filtered AR(1) coefficients converge to truth
@@ -28,10 +28,10 @@ from scipy import stats
 # ---------------------------------------------------------------------------
 # Project imports
 # ---------------------------------------------------------------------------
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from src.filters.kalman import KalmanFilter
-from src.models.ou_process import OrnsteinUhlenbeck
+from qufin.models.ou_process import OrnsteinUhlenbeck
+from qufin.timeseries.kalman import KalmanFilter
 
 # ---------------------------------------------------------------------------
 # Output directory

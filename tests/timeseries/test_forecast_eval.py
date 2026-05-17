@@ -1,20 +1,16 @@
 """
-Tests for src.timeseries.forecast_eval — backtests, metrics, DM, CRPS.
+Tests for qufin.timeseries.forecast_eval — backtests, metrics, DM, CRPS.
 """
 
 from __future__ import annotations
 
 import math
-import os
-import sys
 
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries.arima import AR
-from src.timeseries.forecast_eval import (
+from qufin.timeseries.arima import AR
+from qufin.timeseries.forecast_eval import (
     DMResult,
     RollingBacktest,
     crps,

@@ -1,12 +1,12 @@
 """
-Tests for src.strategies.mean_reversion — MeanReversionStrategy.
+Tests for qufin.strategies.mean_reversion — MeanReversionStrategy.
 
 Coverage
 --------
   StrategyParams — construction, validation, constraint enforcement
   BacktestResult — shape, properties, to_dataframe, summary
   MeanReversionStrategy.run() — output shapes, causality, signal logic,
-      warm-up period, NaN handling, pd.Series index propagation
+      warm-up period, NaN handling, pl.Series input acceptance
   Signal logic — long/short entry, exit, stop-loss, correct P&L sign
   Streaming mode — step() matches run(), reset() cleans state
   Log-likelihood — finite, negative, correct ordering
@@ -17,17 +17,12 @@ Coverage
 
 from __future__ import annotations
 
-import os
-import sys
-
 import numpy as np
-import pandas as pd
+import polars as pl
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.models.ou_process import OrnsteinUhlenbeck
-from src.strategies.mean_reversion import (
+from qufin.models.ou_process import OrnsteinUhlenbeck
+from qufin.strategies.mean_reversion import (
     BacktestResult,
     MeanReversionStrategy,
     StrategyParams,
@@ -128,12 +123,11 @@ class TestRunOutputStructure:
         r = s.run(prices)
         np.testing.assert_array_equal(r.prices, prices)
 
-    def test_series_index_propagated(self):
+    def test_polars_series_input(self):
         s = default_strategy()
-        idx = pd.date_range("2022-01-01", periods=200, freq="B")
-        series = pd.Series(make_ou_series(200), index=idx)
+        series = pl.Series("price", make_ou_series(200))
         r = s.run(series)
-        assert list(r.index) == list(idx)
+        assert len(r.prices) == 200
 
     def test_to_dataframe_shape(self):
         s = default_strategy()
@@ -141,6 +135,7 @@ class TestRunOutputStructure:
         r = s.run(make_ou_series(T))
         df = r.to_dataframe()
         assert df.shape == (T, 8)
+        assert isinstance(df, pl.DataFrame)
 
     def test_to_dataframe_columns(self):
         s = default_strategy()
@@ -536,13 +531,13 @@ class TestEdgeCases:
         r = s.run(rw)
         assert np.all(np.isfinite(r.log_returns))
 
-    def test_pandas_series_input(self):
-        idx = pd.date_range("2020-01-01", periods=300, freq="B")
-        series = pd.Series(make_ou_series(300), index=idx)
+    def test_polars_series_input_edge(self):
+        series = pl.Series("price", make_ou_series(300))
         s = default_strategy()
         r = s.run(series)
-        assert isinstance(r.to_dataframe(), pd.DataFrame)
-        assert list(r.to_dataframe().index) == list(idx)
+        df = r.to_dataframe()
+        assert isinstance(df, pl.DataFrame)
+        assert df.height == 300
 
     def test_train_then_run_consistent(self):
         """Fitted params should produce consistent run() output."""

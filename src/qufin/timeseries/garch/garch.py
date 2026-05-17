@@ -45,7 +45,7 @@ from ._likelihood import garch_filter
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class GARCHFitResult:
     """Fitted GARCH(p, q) model output."""
 

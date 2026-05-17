@@ -28,7 +28,7 @@ from ..utils import info_criteria
 from ._likelihood import egarch_filter
 
 
-@dataclass
+@dataclass(slots=True)
 class EGARCHFitResult:
     """Fitted EGARCH(p, q) model output."""
 

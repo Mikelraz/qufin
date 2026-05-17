@@ -27,7 +27,7 @@ import numpy as np
 # Result containers
 # ---------------------------------------------------------------------------
 
-@dataclass
+@dataclass(slots=True)
 class FilterResult:
     """Outputs of a forward Kalman filter pass over T observations."""
 
@@ -41,7 +41,7 @@ class FilterResult:
     log_likelihood: float         # total log-likelihood (missing obs skipped)
 
 
-@dataclass
+@dataclass(slots=True)
 class SmootherResult:
     """Outputs of an RTS backward smoother pass."""
 

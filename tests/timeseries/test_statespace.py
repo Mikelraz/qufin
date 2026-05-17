@@ -1,5 +1,5 @@
 """
-Tests for src.timeseries.statespace — ARMAStateSpace.
+Tests for qufin.timeseries.statespace — ARMAStateSpace.
 
 Correctness benchmarks
 ----------------------
@@ -14,17 +14,12 @@ Correctness benchmarks
 
 from __future__ import annotations
 
-import os
-import sys
-
 import numpy as np
 import polars as pl
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries.arima import ARMA, _arma_log_likelihood
-from src.timeseries.statespace import ARMAStateSpace, StateSpaceResult
+from qufin.timeseries.arima import ARMA, _arma_log_likelihood
+from qufin.timeseries.statespace import ARMAStateSpace, StateSpaceResult
 
 RNG = np.random.default_rng(200)
 

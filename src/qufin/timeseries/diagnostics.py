@@ -27,7 +27,7 @@ from ._io import to_numpy_1d, validate_finite, validate_min_length
 from ._kernels import durbin_levinson, sample_acf, sample_acovf
 
 
-@dataclass
+@dataclass(slots=True)
 class ACFResult:
     """
     Sample (P)ACF together with white-noise confidence bands.

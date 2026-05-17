@@ -37,7 +37,7 @@ from scipy import optimize, stats
 # Result container
 # ---------------------------------------------------------------------------
 
-@dataclass
+@dataclass(slots=True)
 class OUFitResult:
     """
     Summary of a completed parameter fit.

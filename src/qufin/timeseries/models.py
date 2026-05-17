@@ -16,9 +16,22 @@ TrendFilter
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from .kalman import FilterResult, KalmanFilter, SmootherResult
+
+_SeriesLike = np.ndarray | pl.Series
+
+
+def _to_numpy_1d(x: _SeriesLike) -> np.ndarray:
+    """Coerce a 1-D polars Series or numpy array to a float64 numpy array."""
+    if isinstance(x, pl.Series):
+        return x.to_numpy().astype(np.float64, copy=False)
+    arr = np.asarray(x, dtype=np.float64)
+    if arr.ndim != 1:
+        raise ValueError(f"expected 1-D array, got shape {arr.shape}")
+    return arr
+
 
 # ---------------------------------------------------------------------------
 # HedgeRatioFilter
@@ -150,32 +163,32 @@ class HedgeRatioFilter:
 
     def filter(
         self,
-        y: np.ndarray | pd.Series,
-        x: np.ndarray | pd.Series,
+        y: _SeriesLike,
+        x: _SeriesLike,
         x0: np.ndarray | None = None,
         P0: np.ndarray | None = None,
-    ) -> pd.DataFrame:
+    ) -> pl.DataFrame:
         """
         Run the filter over full price/return series.
 
         Parameters
         ----------
-        y, x : array_like, shape (T,)
+        y, x : np.ndarray or pl.Series, shape (T,)
             Dependent and independent asset series (prices or log-prices).
         x0 : optional initial state override for this run.
         P0 : optional initial covariance override for this run.
 
         Returns
         -------
-        pd.DataFrame with columns:
+        pl.DataFrame with columns:
             beta       – filtered hedge-ratio estimate
             alpha      – filtered intercept estimate
             spread     – residual  y - β·x - α  (the innovation)
             beta_std   – posterior standard deviation of β
             alpha_std  – posterior standard deviation of α
         """
-        y_arr = np.asarray(y, dtype=float)
-        x_arr = np.asarray(x, dtype=float)
+        y_arr = _to_numpy_1d(y)
+        x_arr = _to_numpy_1d(x)
         if len(y_arr) != len(x_arr):
             raise ValueError("y and x must have the same length.")
 
@@ -196,16 +209,14 @@ class HedgeRatioFilter:
             beta_stds[t]  = np.sqrt(max(self._kf.P[0, 0], 0.0))
             alpha_stds[t] = np.sqrt(max(self._kf.P[1, 1], 0.0))
 
-        index = y.index if isinstance(y, pd.Series) else pd.RangeIndex(T)
-        return pd.DataFrame(
+        return pl.DataFrame(
             {
                 "beta":       betas,
                 "alpha":      alphas,
                 "spread":     spreads,
                 "beta_std":   beta_stds,
                 "alpha_std":  alpha_stds,
-            },
-            index=index,
+            }
         )
 
 
@@ -278,15 +289,15 @@ class TrendFilter:
 
     def filter(
         self,
-        prices: np.ndarray | pd.Series,
+        prices: _SeriesLike,
         smooth: bool = False,
-    ) -> pd.DataFrame:
+    ) -> pl.DataFrame:
         """
         Filter (and optionally smooth) a price or return series.
 
         Parameters
         ----------
-        prices : array_like, shape (T,)
+        prices : np.ndarray or pl.Series, shape (T,)
             Observed prices or returns.  NaN values are treated as missing
             observations.
         smooth : bool
@@ -296,14 +307,13 @@ class TrendFilter:
 
         Returns
         -------
-        pd.DataFrame with columns:
+        pl.DataFrame with columns:
             level        – filtered (or smoothed) price level estimate
             velocity     – filtered (or smoothed) rate of change
             level_std    – posterior std of the level
             velocity_std – posterior std of the velocity
         """
-        arr = np.asarray(prices, dtype=float)
-        T   = len(arr)
+        arr = _to_numpy_1d(prices)
 
         # Warm-start: initialise level from first non-NaN observation
         first_valid = arr[~np.isnan(arr)]
@@ -322,23 +332,21 @@ class TrendFilter:
         lev_std  = np.sqrt(np.maximum(result.covariances[:, 0, 0], 0.0))
         vel_std  = np.sqrt(np.maximum(result.covariances[:, 1, 1], 0.0))
 
-        index = prices.index if isinstance(prices, pd.Series) else pd.RangeIndex(T)
-        return pd.DataFrame(
+        return pl.DataFrame(
             {
                 "level":        levels,
                 "velocity":     velocity,
                 "level_std":    lev_std,
                 "velocity_std": vel_std,
-            },
-            index=index,
+            }
         )
 
     def log_likelihood(
         self,
-        prices: np.ndarray | pd.Series,
+        prices: _SeriesLike,
     ) -> float:
         """Log-likelihood of the price series under the current model parameters."""
-        arr = np.asarray(prices, dtype=float)
+        arr = _to_numpy_1d(prices)
         first_valid = arr[~np.isnan(arr)]
         init_level  = float(first_valid[0]) if len(first_valid) else 0.0
         x0 = np.array([init_level, 0.0])

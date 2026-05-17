@@ -41,7 +41,7 @@ class HasResiduals(Protocol):
     fitted_values: np.ndarray
 
 
-@dataclass
+@dataclass(slots=True)
 class ForecastResult:
     """
     Uniform forecast output.
@@ -81,7 +81,7 @@ class ForecastResult:
         return pl.DataFrame(cols)
 
 
-@dataclass
+@dataclass(slots=True)
 class BacktestEvalResult:
     """
     Rolling / expanding backtest evaluation summary.

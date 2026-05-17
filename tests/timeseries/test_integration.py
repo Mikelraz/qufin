@@ -9,15 +9,10 @@ DataFrames.
 
 from __future__ import annotations
 
-import os
-import sys
-
 import numpy as np
 import polars as pl
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries import (
+from qufin.timeseries import (
     acf,
     adf,
     arch_lm,

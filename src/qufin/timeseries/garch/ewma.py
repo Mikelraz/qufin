@@ -22,7 +22,7 @@ from .._io import to_numpy_1d, validate_finite, validate_min_length
 from ._likelihood import ewma_filter
 
 
-@dataclass
+@dataclass(slots=True)
 class EWMAResult:
     """RiskMetrics EWMA result.
 

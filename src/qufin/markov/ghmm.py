@@ -31,7 +31,7 @@ _EPS: float = 1e-12
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class GaussianHMMFit:
     transition_matrix: NDArray[np.float64]
     means: NDArray[np.float64]

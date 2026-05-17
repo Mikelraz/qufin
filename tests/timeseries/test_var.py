@@ -1,21 +1,17 @@
 # ruff: noqa: N806, N803  — matrix variables use control-theory/econometric uppercase (A, L, X)
 """
-Tests for src.timeseries.var — VAR, Granger causality, impulse responses.
+Tests for qufin.timeseries.var — VAR, Granger causality, impulse responses.
 """
 
 from __future__ import annotations
 
-import os
-import sys
 import warnings
 
 import numpy as np
 import polars as pl
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries.var import (
+from qufin.timeseries.var import (
     VAR,
     GrangerResult,
     VARFitResult,

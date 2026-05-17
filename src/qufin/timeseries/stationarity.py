@@ -133,7 +133,7 @@ def _kpss_pvalue(stat: float, regression: str) -> float:
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class ADFResult:
     """Augmented Dickey-Fuller test outcome."""
 
@@ -156,7 +156,7 @@ class ADFResult:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class KPSSResult:
     """KPSS test outcome (null: trend stationary)."""
 
@@ -168,7 +168,7 @@ class KPSSResult:
     critical_values: dict[float, float] = field(default_factory=dict)
 
 
-@dataclass
+@dataclass(slots=True)
 class PPResult:
     """Phillips-Perron test outcome."""
 
@@ -180,7 +180,7 @@ class PPResult:
     critical_values: dict[float, float] = field(default_factory=dict)
 
 
-@dataclass
+@dataclass(slots=True)
 class VRResult:
     """Lo-MacKinlay (1988) variance-ratio test outcome."""
 

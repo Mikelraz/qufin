@@ -328,7 +328,7 @@ def _arma_forecast_mean(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class ARFitResult:
     """Fitted AR(p) model output."""
 
@@ -368,7 +368,7 @@ class ARFitResult:
         return pl.DataFrame({"parameter": names, "value": values})
 
 
-@dataclass
+@dataclass(slots=True)
 class MAFitResult:
     """Fitted MA(q) model output."""
 
@@ -407,7 +407,7 @@ class MAFitResult:
         return pl.DataFrame({"parameter": names, "value": values})
 
 
-@dataclass
+@dataclass(slots=True)
 class ARMAFitResult:
     """Fitted ARMA(p, q) model output."""
 
@@ -456,7 +456,7 @@ class ARMAFitResult:
         return pl.DataFrame({"parameter": names, "value": values})
 
 
-@dataclass
+@dataclass(slots=True)
 class ARIMAFitResult:
     """Fitted ARIMA(p, d, q) model output."""
 
@@ -506,7 +506,7 @@ class ARIMAFitResult:
         return pl.DataFrame({"parameter": names, "value": values})
 
 
-@dataclass
+@dataclass(slots=True)
 class SARIMAFitResult:
     """Fitted SARIMA(p,d,q)(P,D,Q,s) model output."""
 

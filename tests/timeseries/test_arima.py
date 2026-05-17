@@ -1,5 +1,5 @@
 """
-Tests for src.timeseries.arima — AR, MA, ARMA, ARIMA, SARIMA.
+Tests for qufin.timeseries.arima — AR, MA, ARMA, ARIMA, SARIMA.
 
 Correctness benchmarks
 ----------------------
@@ -18,16 +18,11 @@ Correctness benchmarks
 
 from __future__ import annotations
 
-import os
-import sys
-
 import numpy as np
 import polars as pl
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries.arima import (
+from qufin.timeseries.arima import (
     AR,
     ARIMA,
     ARMA,
@@ -705,7 +700,7 @@ class TestLogLikelihood:
 
     def test_true_params_give_higher_ll(self):
         # True AR(1) phi=0.6 should give higher LL than misspecified phi=0.1
-        from src.timeseries.arima import _arma_log_likelihood
+        from qufin.timeseries.arima import _arma_log_likelihood
 
         y = _simulate_ar([0.6], 1.0, 2_000, seed=132)
         ll_true = _arma_log_likelihood(np.array([0.6]), np.zeros(0), 1.0, y)

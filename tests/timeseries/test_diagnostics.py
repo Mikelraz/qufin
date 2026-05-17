@@ -1,5 +1,5 @@
 """
-Tests for src.timeseries.diagnostics.
+Tests for qufin.timeseries.diagnostics.
 
 Correctness benchmarks
 ----------------------
@@ -14,16 +14,11 @@ Correctness benchmarks
 
 from __future__ import annotations
 
-import os
-import sys
-
 import numpy as np
 import polars as pl
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.timeseries.diagnostics import (
+from qufin.timeseries.diagnostics import (
     ACFResult,
     acf,
     arch_lm,

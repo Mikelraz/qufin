@@ -14,7 +14,7 @@ Step 1 — Online state estimation
         X_t  =  β_t · X_{t-1}  +  α_t  +  ε_t,     ε_t ~ N(0, obs_var)
         [β_t, α_t]  =  [β_{t-1}, α_{t-1}]  +  w_t,  w_t ~ N(0, δ·I₂)
 
-    This is the HedgeRatioFilter from src.timeseries applied to the series
+    This is the HedgeRatioFilter from qufin.timeseries applied to the series
     against its own lag, giving the OU parameters in closed form:
 
         θ_t  = −ln(β_t) / Δt           (mean-reversion speed)
@@ -54,10 +54,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import optimize
 
 from ..timeseries.kalman import KalmanFilter
+
+_SeriesLike = np.ndarray | pl.Series
+
+
+def _to_numpy_1d(x: _SeriesLike) -> np.ndarray:
+    """Coerce a 1-D polars Series or numpy array to a float64 numpy array."""
+    if isinstance(x, pl.Series):
+        return x.to_numpy().astype(np.float64, copy=False)
+    arr = np.asarray(x, dtype=np.float64)
+    if arr.ndim != 1:
+        raise ValueError(f"expected 1-D array, got shape {arr.shape}")
+    return arr
 
 _ANNUAL = np.sqrt(252)   # annualisation for daily Sharpe
 _LOG_2PI = np.log(2.0 * np.pi)
@@ -67,7 +79,7 @@ _LOG_2PI = np.log(2.0 * np.pi)
 # Parameter container
 # ---------------------------------------------------------------------------
 
-@dataclass
+@dataclass(slots=True)
 class StrategyParams:
     """
     Hyperparameters of ``MeanReversionStrategy``.
@@ -137,7 +149,7 @@ class StrategyParams:
 # Result containers
 # ---------------------------------------------------------------------------
 
-@dataclass
+@dataclass(slots=True)
 class BacktestResult:
     """
     Output of ``MeanReversionStrategy.run()``.
@@ -155,7 +167,6 @@ class BacktestResult:
     signal: np.ndarray       # (T,) position ∈ {−1, 0, +1}
     log_returns: np.ndarray  # (T−1,) signal[t] × Δ log(price[t+1])
     prices: np.ndarray       # (T,) original prices
-    index: object | None = None   # original pd.Index if input was a Series
 
     # ------------------------------------------------------------------
 
@@ -185,13 +196,11 @@ class BacktestResult:
         entries = np.sum((pos[1:] != 0) & (pos[:-1] == 0))
         return int(entries)
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_dataframe(self) -> pl.DataFrame:
         """Return all series as a single aligned DataFrame."""
-        T = len(self.prices)
         # strat_ret[t] = return *earned* at bar t (i.e. signal[t-1] × Δlog)
         strat_ret = np.concatenate([[np.nan], self.log_returns])
-        idx = self.index if self.index is not None else pd.RangeIndex(T)
-        return pd.DataFrame(
+        return pl.DataFrame(
             {
                 "price":     self.prices,
                 "mu":        self.mu,
@@ -201,8 +210,7 @@ class BacktestResult:
                 "z_score":   self.z_score,
                 "signal":    self.signal,
                 "strat_ret": strat_ret,
-            },
-            index=idx,
+            }
         )
 
     def summary(self) -> str:
@@ -220,7 +228,7 @@ class BacktestResult:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class TrainResult:
     """Output of ``MeanReversionStrategy.fit()``."""
 
@@ -507,14 +515,14 @@ class MeanReversionStrategy:
 
     def run(
         self,
-        prices: np.ndarray | pd.Series,
+        prices: _SeriesLike,
     ) -> BacktestResult:
         """
         Batch causal backtest on a price series.
 
         Parameters
         ----------
-        prices : array_like, shape (T,)
+        prices : np.ndarray or pl.Series, shape (T,)
             Observed prices or any mean-reverting series (spreads, log-ratios).
             Must be positive if log-returns are to be interpreted as prices.
 
@@ -522,8 +530,7 @@ class MeanReversionStrategy:
         -------
         BacktestResult
         """
-        index = prices.index if isinstance(prices, pd.Series) else None
-        arr = np.asarray(prices, dtype=float)
+        arr = _to_numpy_1d(prices)
         min_len = self.params.vol_window + 5
         if len(arr) < min_len:
             raise ValueError(
@@ -540,7 +547,6 @@ class MeanReversionStrategy:
             signal=out["signal"],
             log_returns=out["log_returns"],
             prices=arr,
-            index=index,
         )
 
     # ------------------------------------------------------------------
@@ -650,7 +656,7 @@ class MeanReversionStrategy:
 
     def fit(
         self,
-        prices: np.ndarray | pd.Series,
+        prices: _SeriesLike,
         method: str = "sharpe",
         train_frac: float = 1.0,
         n_restarts: int = 5,
@@ -684,7 +690,7 @@ class MeanReversionStrategy:
             Contains the optimal ``StrategyParams`` and training statistics.
             The strategy's ``self.params`` is updated in-place on success.
         """
-        arr = np.asarray(prices, dtype=float)
+        arr = _to_numpy_1d(prices)
         n_train = max(
             int(len(arr) * train_frac),
             self.params.vol_window + 10,
