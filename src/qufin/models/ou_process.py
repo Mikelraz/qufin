@@ -37,6 +37,7 @@ from scipy import optimize, stats
 # Result container
 # ---------------------------------------------------------------------------
 
+
 @dataclass(slots=True)
 class OUFitResult:
     """
@@ -82,6 +83,7 @@ class OUFitResult:
 # ---------------------------------------------------------------------------
 # Core model
 # ---------------------------------------------------------------------------
+
 
 class OrnsteinUhlenbeck:
     """
@@ -165,9 +167,7 @@ class OrnsteinUhlenbeck:
 
     def _require_param(self, name: str) -> None:
         if getattr(self, f"_{name}") is None:
-            raise RuntimeError(
-                f"Parameter '{name}' is not set. Call fit() or set it manually."
-            )
+            raise RuntimeError(f"Parameter '{name}' is not set. Call fit() or set it manually.")
 
     def _require_fitted(self) -> None:
         for p in ("theta", "mu", "sigma"):
@@ -185,7 +185,7 @@ class OrnsteinUhlenbeck:
     @property
     def stationary_var(self) -> float:
         """Variance of the stationary (equilibrium) distribution: σ² / (2θ)."""
-        return self.sigma ** 2 / (2.0 * self.theta)
+        return self.sigma**2 / (2.0 * self.theta)
 
     @property
     def stationary_std(self) -> float:
@@ -206,7 +206,7 @@ class OrnsteinUhlenbeck:
     def _sigma_eps(self) -> float:
         """Conditional std of the exact discrete transition."""
         b = self._b
-        return self.sigma * np.sqrt((1.0 - b ** 2) / (2.0 * self.theta))
+        return self.sigma * np.sqrt((1.0 - b**2) / (2.0 * self.theta))
 
     def autocorrelation(self, lag: int) -> float:
         """
@@ -265,9 +265,9 @@ class OrnsteinUhlenbeck:
         The OLS estimator is identical to the exact conditional MLE for a
         Gaussian OU process when σ is profiled out analytically.
         """
-        y   = x[1:]   # X_{t+1}
+        y = x[1:]  # X_{t+1}
         x_t = x[:-1]  # X_t
-        T   = len(y)
+        T = len(y)
 
         # Design matrix [1, X_t]
         A = np.column_stack([np.ones(T), x_t])
@@ -283,9 +283,14 @@ class OrnsteinUhlenbeck:
 
         ll = self._log_likelihood_from_eps(eps, sigma_eps_sq, T)
         self._fit_result = OUFitResult(
-            theta=theta, mu=mu, sigma=sigma,
-            half_life=self.half_life, sigma_eq=self.stationary_std,
-            log_lik=ll, method="ols", n_obs=T,
+            theta=theta,
+            mu=mu,
+            sigma=sigma,
+            half_life=self.half_life,
+            sigma_eq=self.stationary_std,
+            log_lik=ll,
+            method="ols",
+            n_obs=T,
         )
         return self._fit_result
 
@@ -322,9 +327,14 @@ class OrnsteinUhlenbeck:
 
         ll = self._conditional_log_likelihood(x, theta, mu, sigma)
         self._fit_result = OUFitResult(
-            theta=theta, mu=mu, sigma=sigma,
-            half_life=self.half_life, sigma_eq=self.stationary_std,
-            log_lik=ll, method="mle", n_obs=len(x) - 1,
+            theta=theta,
+            mu=mu,
+            sigma=sigma,
+            half_life=self.half_life,
+            sigma_eq=self.stationary_std,
+            log_lik=ll,
+            method="mle",
+            n_obs=len(x) - 1,
         )
         return self._fit_result
 
@@ -370,8 +380,8 @@ class OrnsteinUhlenbeck:
         rng = np.random.default_rng(seed)
         x_start = float(self._mu if x0 is None else x0)  # type: ignore[arg-type]
 
-        b         = self._b
-        a         = self._a
+        b = self._b
+        a = self._a
         sigma_eps = self._sigma_eps
 
         paths = np.empty((n_paths, n_steps + 1))
@@ -508,10 +518,10 @@ class OrnsteinUhlenbeck:
         """
         self._require_fitted()
         eps = self.residuals(x)
-        T   = len(eps)
+        T = len(eps)
         acf = self._sample_acf(eps, lags)
-        Q   = T * (T + 2) * np.sum(acf ** 2 / (T - np.arange(1, lags + 1)))
-        p   = float(1.0 - stats.chi2.cdf(Q, df=lags))
+        Q = T * (T + 2) * np.sum(acf**2 / (T - np.arange(1, lags + 1)))
+        p = float(1.0 - stats.chi2.cdf(Q, df=lags))
         return float(Q), p
 
     def summary(self) -> str:
@@ -534,9 +544,7 @@ class OrnsteinUhlenbeck:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _ar1_to_ou(
-        self, a: float, b: float, sigma_eps_sq: float
-    ) -> tuple[float, float, float]:
+    def _ar1_to_ou(self, a: float, b: float, sigma_eps_sq: float) -> tuple[float, float, float]:
         """
         Convert AR(1) parameters (a, b, σ²_ε) to OU parameters (θ, μ, σ).
 
@@ -566,10 +574,10 @@ class OrnsteinUhlenbeck:
             b = 1e-9
 
         theta = -np.log(b) / dt
-        mu    = a / (1.0 - b)
+        mu = a / (1.0 - b)
 
         # σ²_ε = σ² (1 - e^{-2θΔ}) / (2θ)  ⟹  σ² = σ²_ε · 2θ / (1 - b²)
-        denom = 1.0 - b ** 2
+        denom = 1.0 - b**2
         if denom <= 0.0:
             denom = 1e-12
         sigma = np.sqrt(sigma_eps_sq * 2.0 * theta / denom)
@@ -585,26 +593,22 @@ class OrnsteinUhlenbeck:
     ) -> float:
         """Full conditional log-likelihood L(θ,μ,σ | X_0,...,X_T)."""
         dt = self.dt
-        b  = np.exp(-theta * dt)
-        a  = mu * (1.0 - b)
-        sigma_eps_sq = sigma ** 2 * (1.0 - b ** 2) / (2.0 * theta)
+        b = np.exp(-theta * dt)
+        a = mu * (1.0 - b)
+        sigma_eps_sq = sigma**2 * (1.0 - b**2) / (2.0 * theta)
         if sigma_eps_sq <= 0.0:
             return -np.inf
 
-        T   = len(x) - 1
+        T = len(x) - 1
         eps = x[1:] - (a + b * x[:-1])
         return float(
-            -0.5 * T * np.log(2.0 * np.pi * sigma_eps_sq)
-            - 0.5 * np.dot(eps, eps) / sigma_eps_sq
+            -0.5 * T * np.log(2.0 * np.pi * sigma_eps_sq) - 0.5 * np.dot(eps, eps) / sigma_eps_sq
         )
 
     @staticmethod
-    def _log_likelihood_from_eps(
-        eps: np.ndarray, sigma_eps_sq: float, T: int
-    ) -> float:
+    def _log_likelihood_from_eps(eps: np.ndarray, sigma_eps_sq: float, T: int) -> float:
         return float(
-            -0.5 * T * np.log(2.0 * np.pi * sigma_eps_sq)
-            - 0.5 * np.dot(eps, eps) / sigma_eps_sq
+            -0.5 * T * np.log(2.0 * np.pi * sigma_eps_sq) - 0.5 * np.dot(eps, eps) / sigma_eps_sq
         )
 
     @staticmethod
@@ -615,7 +619,5 @@ class OrnsteinUhlenbeck:
         var = np.dot(x, x) / n
         if var == 0.0:
             return np.zeros(nlags)
-        acf = np.array(
-            [np.dot(x[: n - k], x[k:]) / (n * var) for k in range(1, nlags + 1)]
-        )
+        acf = np.array([np.dot(x[: n - k], x[k:]) / (n * var) for k in range(1, nlags + 1)])
         return acf

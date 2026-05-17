@@ -41,7 +41,15 @@ select = ["E", "F", "I", "UP", "N", "NPY", "PD"]
 [tool.ruff.lint.per-file-ignores]
 # Notebooks use standard mathematical/financial notation (S, K, T, Sigma, Nd1 …)
 # and exploratory long lines in labels/print statements are acceptable.
-"notebooks/*.ipynb" = ["N8", "E501", "E702", "E731", "E741", "E402"]
+# NPY002 (legacy np.random) and F841 (unused locals) are also tolerated for
+# notebook prototyping — these can be tightened cell-by-cell when promoted to src/.
+"notebooks/*.ipynb" = ["N8", "E501", "E702", "E731", "E741", "E402", "NPY002", "F841"]
+# Library code uses textbook math notation: T for time-series length, F/A/B/P/Q/R
+# for state-space matrices, X_w for weighted design matrix, etc.
+"src/qufin/**/*.py" = ["N803", "N806"]
+# Tests mirror that notation, plus test names referencing matrices (test_x0_P0_…,
+# test_state_evolves_by_F, …).
+"tests/**/*.py" = ["N802", "N803", "N806"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

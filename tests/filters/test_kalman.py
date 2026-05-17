@@ -11,7 +11,6 @@ Correctness benchmarks:
   - Control input B @ u is applied correctly
 """
 
-
 import numpy as np
 import pytest
 
@@ -35,16 +34,17 @@ def scalar_kf(sigma_x: float = 1.0, sigma_z: float = 2.0) -> KalmanFilter:
     return KalmanFilter(
         F=[[1.0]],
         H=[[1.0]],
-        Q=[[sigma_x ** 2]],
-        R=[[sigma_z ** 2]],
+        Q=[[sigma_x**2]],
+        R=[[sigma_z**2]],
         x0=[0.0],
-        P0=[[sigma_z ** 2]],
+        P0=[[sigma_z**2]],
     )
 
 
 # ---------------------------------------------------------------------------
 # Construction & validation
 # ---------------------------------------------------------------------------
+
 
 class TestConstruction:
     def test_dimensions_stored(self):
@@ -55,7 +55,7 @@ class TestConstruction:
     def test_wrong_F_shape_raises(self):
         with pytest.raises((ValueError, AssertionError)):
             KalmanFilter(
-                F=np.eye(3),      # wrong: state is 2-d based on x0
+                F=np.eye(3),  # wrong: state is 2-d based on x0
                 H=[[1.0, 0.0]],
                 Q=np.eye(2),
                 R=[[1.0]],
@@ -88,6 +88,7 @@ class TestConstruction:
 # Predict step
 # ---------------------------------------------------------------------------
 
+
 class TestPredict:
     def test_state_evolves_by_F(self):
         kf = scalar_kf()
@@ -103,8 +104,12 @@ class TestPredict:
 
     def test_covariance_symmetry_maintained(self):
         kf = KalmanFilter(
-            F=np.eye(2), H=np.eye(2), Q=0.1 * np.eye(2), R=np.eye(2),
-            x0=[0.0, 0.0], P0=np.eye(2),
+            F=np.eye(2),
+            H=np.eye(2),
+            Q=0.1 * np.eye(2),
+            R=np.eye(2),
+            x0=[0.0, 0.0],
+            P0=np.eye(2),
         )
         kf.predict()
         np.testing.assert_allclose(kf.P, kf.P.T, atol=1e-14)
@@ -112,8 +117,13 @@ class TestPredict:
     def test_control_input_applied(self):
         B = np.array([[1.0]])
         kf = KalmanFilter(
-            F=[[1.0]], H=[[1.0]], Q=[[0.01]], R=[[1.0]],
-            x0=[0.0], P0=[[1.0]], B=B,
+            F=[[1.0]],
+            H=[[1.0]],
+            Q=[[0.01]],
+            R=[[1.0]],
+            x0=[0.0],
+            P0=[[1.0]],
+            B=B,
         )
         kf.x = np.array([0.0])
         x_pred, _ = kf.predict(u=np.array([5.0]))
@@ -128,6 +138,7 @@ class TestPredict:
 # ---------------------------------------------------------------------------
 # Update step
 # ---------------------------------------------------------------------------
+
 
 class TestUpdate:
     def test_posterior_mean_between_prior_and_observation(self):
@@ -147,8 +158,12 @@ class TestUpdate:
 
     def test_covariance_symmetry_after_update(self):
         kf = KalmanFilter(
-            F=np.eye(2), H=np.eye(2), Q=0.1 * np.eye(2), R=np.eye(2),
-            x0=[0.0, 0.0], P0=np.eye(2),
+            F=np.eye(2),
+            H=np.eye(2),
+            Q=0.1 * np.eye(2),
+            R=np.eye(2),
+            x0=[0.0, 0.0],
+            P0=np.eye(2),
         )
         kf.predict()
         kf.update(np.array([1.0, 2.0]))
@@ -164,8 +179,12 @@ class TestUpdate:
     def test_perfect_observation_collapses_uncertainty(self):
         """When R → 0 the posterior should converge to the observation."""
         kf = KalmanFilter(
-            F=[[1.0]], H=[[1.0]], Q=[[1.0]], R=[[1e-10]],
-            x0=[0.0], P0=[[1.0]],
+            F=[[1.0]],
+            H=[[1.0]],
+            Q=[[1.0]],
+            R=[[1e-10]],
+            x0=[0.0],
+            P0=[[1.0]],
         )
         kf.predict()
         x_filt, P_filt, _, _, _ = kf.update(np.array([7.0]))
@@ -176,6 +195,7 @@ class TestUpdate:
 # ---------------------------------------------------------------------------
 # Batch filter
 # ---------------------------------------------------------------------------
+
 
 class TestBatchFilter:
     def test_returns_filter_result(self):
@@ -201,7 +221,7 @@ class TestBatchFilter:
         kf = scalar_kf(sigma_x=0.5, sigma_z=3.0)
         res = kf.filter(z)
         mse_filter = np.mean((res.states[:, 0] - x_true) ** 2)
-        mse_raw    = np.mean((z - x_true) ** 2)
+        mse_raw = np.mean((z - x_true) ** 2)
         assert mse_filter < mse_raw
 
     def test_missing_observations_nan_handled(self):
@@ -256,6 +276,7 @@ class TestBatchFilter:
 # RTS smoother
 # ---------------------------------------------------------------------------
 
+
 class TestRTSSmoother:
     def test_returns_smoother_result(self):
         kf = scalar_kf()
@@ -270,9 +291,9 @@ class TestRTSSmoother:
         T = 200
         _, z = make_scalar_rw(T)
         filt = kf.filter(z)
-        smo  = kf.smooth(filt)
+        smo = kf.smooth(filt)
         filt_var = filt.covariances[:, 0, 0]
-        smo_var  = smo.covariances[:, 0, 0]
+        smo_var = smo.covariances[:, 0, 0]
         # Allow tiny floating-point slack (1e-10)
         assert np.all(smo_var <= filt_var + 1e-10), (
             f"Smoother exceeded filter variance at some steps: "
@@ -285,9 +306,9 @@ class TestRTSSmoother:
         x_true, z = make_scalar_rw(T, sigma_x=0.5, sigma_z=3.0)
         kf = scalar_kf(sigma_x=0.5, sigma_z=3.0)
         filt = kf.filter(z)
-        smo  = kf.smooth(filt)
+        smo = kf.smooth(filt)
         mse_filt = np.mean((filt.states[:, 0] - x_true) ** 2)
-        mse_smo  = np.mean((smo.states[:, 0]  - x_true) ** 2)
+        mse_smo = np.mean((smo.states[:, 0] - x_true) ** 2)
         assert mse_smo <= mse_filt + 1e-6
 
     def test_smoother_gains_shape(self):
@@ -295,17 +316,21 @@ class TestRTSSmoother:
         T = 30
         _, z = make_scalar_rw(T)
         filt = kf.filter(z)
-        smo  = kf.smooth(filt)
+        smo = kf.smooth(filt)
         assert smo.gains.shape == (T - 1, 1, 1)
 
     def test_smoothed_covariances_symmetric(self):
         kf = KalmanFilter(
-            F=np.eye(2), H=np.eye(2), Q=0.1 * np.eye(2), R=np.eye(2),
-            x0=[0.0, 0.0], P0=np.eye(2),
+            F=np.eye(2),
+            H=np.eye(2),
+            Q=0.1 * np.eye(2),
+            R=np.eye(2),
+            x0=[0.0, 0.0],
+            P0=np.eye(2),
         )
         z = RNG.normal(size=(40, 2))
         filt = kf.filter(z)
-        smo  = kf.smooth(filt)
+        smo = kf.smooth(filt)
         for t in range(40):
             np.testing.assert_allclose(smo.covariances[t], smo.covariances[t].T, atol=1e-13)
 
@@ -313,13 +338,14 @@ class TestRTSSmoother:
         kf = scalar_kf()
         _, z = make_scalar_rw(50)
         filt = kf.filter(z)
-        smo  = kf.smooth(filt)
+        smo = kf.smooth(filt)
         assert smo.log_likelihood == pytest.approx(filt.log_likelihood)
 
 
 # ---------------------------------------------------------------------------
 # Log-likelihood interface
 # ---------------------------------------------------------------------------
+
 
 class TestLogLikelihood:
     def test_correct_model_has_higher_ll_than_misspecified(self):
@@ -329,10 +355,10 @@ class TestLogLikelihood:
         x_true, z = make_scalar_rw(T, sigma_x, sigma_z)
 
         kf_good = scalar_kf(sigma_x=sigma_x, sigma_z=sigma_z)
-        kf_bad  = scalar_kf(sigma_x=10.0,    sigma_z=0.01)
+        kf_bad = scalar_kf(sigma_x=10.0, sigma_z=0.01)
 
         ll_good = kf_good.log_likelihood(z)
-        ll_bad  = kf_bad.log_likelihood(z)
+        ll_bad = kf_bad.log_likelihood(z)
         assert ll_good > ll_bad
 
     def test_standalone_ll_equals_filter_ll(self):
@@ -347,6 +373,7 @@ class TestLogLikelihood:
 # Numerical stress tests
 # ---------------------------------------------------------------------------
 
+
 class TestNumericalStability:
     def test_many_steps_P_stays_psd(self):
         """Run 2000 predict+update steps; P must remain positive definite."""
@@ -360,8 +387,12 @@ class TestNumericalStability:
     def test_ill_conditioned_R_handled(self):
         """Tiny R (near-perfect observations) should not blow up the filter."""
         kf = KalmanFilter(
-            F=[[1.0]], H=[[1.0]], Q=[[1.0]], R=[[1e-12]],
-            x0=[0.0], P0=[[1.0]],
+            F=[[1.0]],
+            H=[[1.0]],
+            Q=[[1.0]],
+            R=[[1e-12]],
+            x0=[0.0],
+            P0=[[1.0]],
         )
         for _ in range(100):
             kf.predict()
@@ -373,8 +404,12 @@ class TestNumericalStability:
     def test_large_initial_covariance(self):
         """Diffuse initialisation (large P0) converges without NaN."""
         kf = KalmanFilter(
-            F=[[1.0]], H=[[1.0]], Q=[[1.0]], R=[[1.0]],
-            x0=[0.0], P0=[[1e8]],
+            F=[[1.0]],
+            H=[[1.0]],
+            Q=[[1.0]],
+            R=[[1.0]],
+            x0=[0.0],
+            P0=[[1e8]],
         )
         _, z = make_scalar_rw(50)
         res = kf.filter(z)

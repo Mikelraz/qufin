@@ -36,23 +36,32 @@ from qufin.strategies.mean_reversion import (
 RNG = np.random.default_rng(99)
 
 
-def make_ou_series(T: int = 500, theta: float = 0.2, mu: float = 10.0,
-                   sigma: float = 0.5, seed: int = 0) -> np.ndarray:
+def make_ou_series(
+    T: int = 500, theta: float = 0.2, mu: float = 10.0, sigma: float = 0.5, seed: int = 0
+) -> np.ndarray:
     """Simulate a stationary OU price series of exactly T observations."""
     ou = OrnsteinUhlenbeck(theta=theta, mu=mu, sigma=sigma, dt=1.0)
     return ou.simulate(T - 1, x0=mu, seed=seed)
 
 
 def default_strategy() -> MeanReversionStrategy:
-    return MeanReversionStrategy(StrategyParams(
-        delta=1e-4, obs_var=0.25, entry_z=1.5, exit_z=0.5,
-        stop_z=3.5, vol_window=40, dt=1.0,
-    ))
+    return MeanReversionStrategy(
+        StrategyParams(
+            delta=1e-4,
+            obs_var=0.25,
+            entry_z=1.5,
+            exit_z=0.5,
+            stop_z=3.5,
+            vol_window=40,
+            dt=1.0,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
 # StrategyParams
 # ---------------------------------------------------------------------------
+
 
 class TestStrategyParams:
     def test_defaults_valid(self):
@@ -97,6 +106,7 @@ class TestStrategyParams:
 # run() — output structure
 # ---------------------------------------------------------------------------
 
+
 class TestRunOutputStructure:
     def test_returns_backtest_result(self):
         s = default_strategy()
@@ -109,12 +119,12 @@ class TestRunOutputStructure:
         T = 300
         prices = make_ou_series(T)
         r = s.run(prices)
-        assert len(r.mu)          == T
-        assert len(r.theta)       == T
-        assert len(r.half_life)   == T
-        assert len(r.sigma_eq)    == T
-        assert len(r.z_score)     == T
-        assert len(r.signal)      == T
+        assert len(r.mu) == T
+        assert len(r.theta) == T
+        assert len(r.half_life) == T
+        assert len(r.sigma_eq) == T
+        assert len(r.z_score) == T
+        assert len(r.signal) == T
         assert len(r.log_returns) == T - 1
 
     def test_prices_stored(self):
@@ -141,8 +151,16 @@ class TestRunOutputStructure:
         s = default_strategy()
         r = s.run(make_ou_series(200))
         df = r.to_dataframe()
-        expected = {"price", "mu", "theta", "half_life", "sigma_eq",
-                    "z_score", "signal", "strat_ret"}
+        expected = {
+            "price",
+            "mu",
+            "theta",
+            "half_life",
+            "sigma_eq",
+            "z_score",
+            "signal",
+            "strat_ret",
+        }
         assert set(df.columns) == expected
 
     def test_summary_string(self):
@@ -152,7 +170,7 @@ class TestRunOutputStructure:
         assert "Sharpe" in txt
 
     def test_too_short_raises(self):
-        s = default_strategy()   # vol_window=40
+        s = default_strategy()  # vol_window=40
         with pytest.raises(ValueError):
             s.run(make_ou_series(30))
 
@@ -161,10 +179,11 @@ class TestRunOutputStructure:
 # run() — state properties
 # ---------------------------------------------------------------------------
 
+
 class TestRunStateProperties:
     def test_warmup_nans(self):
         """Before vol_window bars, sigma_eq and z_score should be NaN."""
-        s = default_strategy()   # vol_window=40
+        s = default_strategy()  # vol_window=40
         prices = make_ou_series(200)
         r = s.run(prices)
         # At least the first vol_window bars should have NaN z_score
@@ -208,7 +227,7 @@ class TestRunStateProperties:
         assert np.all(np.isfinite(r.log_returns))
 
     def test_all_state_arrays_finite_after_warmup(self):
-        s = default_strategy()   # vol_window=40
+        s = default_strategy()  # vol_window=40
         r = s.run(make_ou_series(300))
         for arr in [r.mu, r.theta, r.sigma_eq, r.z_score]:
             # Everything after warm-up should be finite
@@ -218,6 +237,7 @@ class TestRunStateProperties:
 # ---------------------------------------------------------------------------
 # run() — signal logic correctness
 # ---------------------------------------------------------------------------
+
 
 class TestSignalLogic:
     def test_no_signal_during_warmup(self):
@@ -230,21 +250,35 @@ class TestSignalLogic:
 
     def test_long_entry_when_z_low(self):
         """Force z_score very negative → strategy must go long."""
-        s = MeanReversionStrategy(StrategyParams(
-            delta=1e-4, obs_var=0.25, entry_z=0.1,  # very low threshold
-            exit_z=0.05, stop_z=5.0, vol_window=20, dt=1.0,
-        ))
-        prices = make_ou_series(500, theta=1.0)   # fast mean-reversion
+        s = MeanReversionStrategy(
+            StrategyParams(
+                delta=1e-4,
+                obs_var=0.25,
+                entry_z=0.1,  # very low threshold
+                exit_z=0.05,
+                stop_z=5.0,
+                vol_window=20,
+                dt=1.0,
+            )
+        )
+        prices = make_ou_series(500, theta=1.0)  # fast mean-reversion
         r = s.run(prices)
         # Should have at least some long positions
         assert np.any(r.signal == 1.0)
 
     def test_short_entry_when_z_high(self):
         """Strategy must go short when z_score is very high."""
-        s = MeanReversionStrategy(StrategyParams(
-            delta=1e-4, obs_var=0.25, entry_z=0.1,
-            exit_z=0.05, stop_z=5.0, vol_window=20, dt=1.0,
-        ))
+        s = MeanReversionStrategy(
+            StrategyParams(
+                delta=1e-4,
+                obs_var=0.25,
+                entry_z=0.1,
+                exit_z=0.05,
+                stop_z=5.0,
+                vol_window=20,
+                dt=1.0,
+            )
+        )
         prices = make_ou_series(500, theta=1.0)
         r = s.run(prices)
         assert np.any(r.signal == -1.0)
@@ -272,11 +306,17 @@ class TestSignalLogic:
 
     def test_stop_loss_closes_position(self):
         """When |z| > stop_z the position must be 0 at that bar."""
-        s = MeanReversionStrategy(StrategyParams(
-            delta=1e-4, obs_var=0.25, entry_z=0.1,
-            exit_z=0.05, stop_z=1.0,    # tight stop
-            vol_window=20, dt=1.0,
-        ))
+        s = MeanReversionStrategy(
+            StrategyParams(
+                delta=1e-4,
+                obs_var=0.25,
+                entry_z=0.1,
+                exit_z=0.05,
+                stop_z=1.0,  # tight stop
+                vol_window=20,
+                dt=1.0,
+            )
+        )
         prices = make_ou_series(500, theta=0.5)
         r = s.run(prices)
         stop_mask = np.abs(r.z_score) > 1.0
@@ -305,6 +345,7 @@ class TestSignalLogic:
 # BacktestResult properties
 # ---------------------------------------------------------------------------
 
+
 class TestBacktestResultProperties:
     def test_sharpe_finite(self):
         s = default_strategy()
@@ -328,10 +369,15 @@ class TestBacktestResultProperties:
 
     def test_flat_strategy_zero_sharpe(self):
         """If signal is always 0, Sharpe is 0."""
-        s = MeanReversionStrategy(StrategyParams(
-            entry_z=100.0, exit_z=0.5, stop_z=200.0,  # never triggers
-            vol_window=20, dt=1.0,
-        ))
+        s = MeanReversionStrategy(
+            StrategyParams(
+                entry_z=100.0,
+                exit_z=0.5,
+                stop_z=200.0,  # never triggers
+                vol_window=20,
+                dt=1.0,
+            )
+        )
         prices = make_ou_series(300)
         r = s.run(prices)
         assert r.sharpe == pytest.approx(0.0, abs=1e-10)
@@ -340,6 +386,7 @@ class TestBacktestResultProperties:
 # ---------------------------------------------------------------------------
 # Streaming mode
 # ---------------------------------------------------------------------------
+
 
 class TestStreamingMode:
     def test_reset_required_before_step(self):
@@ -408,6 +455,7 @@ class TestStreamingMode:
 # Log-likelihood
 # ---------------------------------------------------------------------------
 
+
 class TestLogLikelihood:
     def test_finite_and_negative(self):
         s = default_strategy()
@@ -419,15 +467,16 @@ class TestLogLikelihood:
         """A delta calibrated to the data noise level should win on log-lik."""
         prices = make_ou_series(500)
         s_good = MeanReversionStrategy(StrategyParams(delta=1e-4, obs_var=0.25))
-        s_bad  = MeanReversionStrategy(StrategyParams(delta=1e-1, obs_var=10.0))
+        s_bad = MeanReversionStrategy(StrategyParams(delta=1e-1, obs_var=10.0))
         ll_good = s_good._log_likelihood(prices, s_good.params)
-        ll_bad  = s_bad._log_likelihood(prices, s_bad.params)
+        ll_bad = s_bad._log_likelihood(prices, s_bad.params)
         assert ll_good > ll_bad
 
 
 # ---------------------------------------------------------------------------
 # Training — likelihood
 # ---------------------------------------------------------------------------
+
 
 class TestFitLikelihood:
     def test_returns_train_result(self):
@@ -443,20 +492,23 @@ class TestFitLikelihood:
 
     def test_params_updated_on_object(self):
         s = MeanReversionStrategy()
-        old_delta = s.params.delta
         s.fit(make_ou_series(500), method="likelihood")
         # delta should have been tuned (may or may not change significantly)
         assert s.params.delta > 0
 
     def test_signal_thresholds_unchanged(self):
         """Likelihood training must NOT touch entry/exit/stop thresholds."""
-        s = MeanReversionStrategy(StrategyParams(
-            entry_z=2.0, exit_z=0.8, stop_z=4.0,
-        ))
+        s = MeanReversionStrategy(
+            StrategyParams(
+                entry_z=2.0,
+                exit_z=0.8,
+                stop_z=4.0,
+            )
+        )
         s.fit(make_ou_series(500), method="likelihood")
         assert s.params.entry_z == pytest.approx(2.0)
-        assert s.params.exit_z  == pytest.approx(0.8)
-        assert s.params.stop_z  == pytest.approx(4.0)
+        assert s.params.exit_z == pytest.approx(0.8)
+        assert s.params.stop_z == pytest.approx(4.0)
 
     def test_fitted_ll_ge_default_ll(self):
         """Optimised params should achieve at least as high log-lik."""
@@ -465,7 +517,7 @@ class TestFitLikelihood:
         ll_before = s._log_likelihood(prices, s.params)
         s.fit(prices, method="likelihood")
         ll_after = s._log_likelihood(prices, s.params)
-        assert ll_after >= ll_before - 1.0   # allow tiny numerical slack
+        assert ll_after >= ll_before - 1.0  # allow tiny numerical slack
 
     def test_unknown_method_raises(self):
         s = MeanReversionStrategy()
@@ -476,6 +528,7 @@ class TestFitLikelihood:
 # ---------------------------------------------------------------------------
 # Training — Sharpe
 # ---------------------------------------------------------------------------
+
 
 class TestFitSharpe:
     def test_returns_train_result(self):
@@ -516,12 +569,13 @@ class TestFitSharpe:
 # Edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestEdgeCases:
     def test_flat_price_series(self):
         """Constant prices must not crash (zero innovations)."""
         s = default_strategy()
         prices = np.full(300, 10.0)
-        r = s.run(prices)          # no exception
+        r = s.run(prices)  # no exception
         assert np.all(r.log_returns == 0.0)
 
     def test_random_walk_runs_without_crash(self):

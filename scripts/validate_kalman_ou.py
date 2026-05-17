@@ -17,6 +17,7 @@ Visual diagnostics (saved to scripts/figures/):
   - parameter convergence traces
   - coverage probability calibration
 """
+
 from __future__ import annotations
 
 import sys
@@ -42,13 +43,13 @@ FIG_DIR.mkdir(exist_ok=True)
 # ---------------------------------------------------------------------------
 # Ground-truth OU parameters
 # ---------------------------------------------------------------------------
-TRUE_THETA = 0.15       # mean-reversion speed
-TRUE_MU    = 100.0      # long-run mean
-TRUE_SIGMA = 2.0        # diffusion coefficient
-DT         = 1.0        # daily sampling
-OBS_NOISE  = 0.8        # observation noise std
-N_STEPS    = 2000
-SEED       = 42
+TRUE_THETA = 0.15  # mean-reversion speed
+TRUE_MU = 100.0  # long-run mean
+TRUE_SIGMA = 2.0  # diffusion coefficient
+DT = 1.0  # daily sampling
+OBS_NOISE = 0.8  # observation noise std
+N_STEPS = 2000
+SEED = 42
 
 
 def generate_data() -> tuple[np.ndarray, np.ndarray]:
@@ -79,12 +80,12 @@ def build_ou_kalman() -> KalmanFilter:
     a = TRUE_MU * (1.0 - b)
     sigma_eps = TRUE_SIGMA * np.sqrt((1.0 - b**2) / (2.0 * TRUE_THETA))
 
-    f_mat  = np.array([[b]])
-    b_mat  = np.array([[1.0]])
-    h_mat  = np.array([[1.0]])
-    q_mat  = np.array([[sigma_eps**2]])
-    r_mat  = np.array([[OBS_NOISE**2]])
-    x0     = np.array([TRUE_MU])
+    f_mat = np.array([[b]])
+    b_mat = np.array([[1.0]])
+    h_mat = np.array([[1.0]])
+    q_mat = np.array([[sigma_eps**2]])
+    r_mat = np.array([[OBS_NOISE**2]])
+    x0 = np.array([TRUE_MU])
     p0_mat = np.array([[TRUE_SIGMA**2 / (2.0 * TRUE_THETA)]])
 
     return KalmanFilter(F=f_mat, H=h_mat, Q=q_mat, R=r_mat, x0=x0, P0=p0_mat, B=b_mat), a
@@ -93,6 +94,7 @@ def build_ou_kalman() -> KalmanFilter:
 # ===================================================================
 # Numerical diagnostics
 # ===================================================================
+
 
 def run_numerical_tests(
     kf: KalmanFilter,
@@ -112,8 +114,8 @@ def run_numerical_tests(
 
     # --- 1. Filter accuracy (RMSE vs true state) -----------------------
     burn = 100
-    rmse_filt = float(np.sqrt(np.mean((x_filt[burn:] - x_true[burn:])**2)))
-    rmse_obs  = float(np.sqrt(np.mean((z_obs[burn:] - x_true[burn:])**2)))
+    rmse_filt = float(np.sqrt(np.mean((x_filt[burn:] - x_true[burn:]) ** 2)))
+    rmse_obs = float(np.sqrt(np.mean((z_obs[burn:] - x_true[burn:]) ** 2)))
     results["filter_rmse"] = {
         "rmse_filter": round(rmse_filt, 4),
         "rmse_raw_obs": round(rmse_obs, 4),
@@ -122,10 +124,10 @@ def run_numerical_tests(
     }
 
     # --- 2. Smoother tighter than filter --------------------------------
-    var_filt   = np.array([filt.covariances[i, 0, 0] for i in range(n_obs)])
+    var_filt = np.array([filt.covariances[i, 0, 0] for i in range(n_obs)])
     var_smooth = np.array([smooth.covariances[i, 0, 0] for i in range(n_obs)])
     smoother_tighter = bool(np.all(var_smooth[1:-1] <= var_filt[1:-1] + 1e-12))
-    rmse_smooth = float(np.sqrt(np.mean((x_smooth[burn:] - x_true[burn:])**2)))
+    rmse_smooth = float(np.sqrt(np.mean((x_smooth[burn:] - x_true[burn:]) ** 2)))
     results["smoother_tightening"] = {
         "rmse_smoother": round(rmse_smooth, 4),
         "smoother_leq_filter_everywhere": smoother_tighter,
@@ -141,13 +143,13 @@ def run_numerical_tests(
 
     n_valid = len(norm_innov)
     lags = 20
-    acf_vals = np.array([
-        float(np.corrcoef(norm_innov[:n_valid - k], norm_innov[k:])[0, 1])
-        for k in range(1, lags + 1)
-    ])
-    q_stat = n_valid * (n_valid + 2) * np.sum(
-        acf_vals**2 / (n_valid - np.arange(1, lags + 1))
+    acf_vals = np.array(
+        [
+            float(np.corrcoef(norm_innov[: n_valid - k], norm_innov[k:])[0, 1])
+            for k in range(1, lags + 1)
+        ]
     )
+    q_stat = n_valid * (n_valid + 2) * np.sum(acf_vals**2 / (n_valid - np.arange(1, lags + 1)))
     lb_pval = float(1.0 - stats.chi2.cdf(q_stat, df=lags))
 
     results["innovation_whiteness"] = {
@@ -204,8 +206,7 @@ def print_report(results: dict) -> None:
     print("\n" + "=" * 60)
     print("  KALMAN FILTER VALIDATION ON SYNTHETIC OU DATA")
     print("=" * 60)
-    print(f"\n  Ground truth:  theta={TRUE_THETA}, mu={TRUE_MU}, "
-          f"sigma={TRUE_SIGMA}")
+    print(f"\n  Ground truth:  theta={TRUE_THETA}, mu={TRUE_MU}, sigma={TRUE_SIGMA}")
     print(f"  Observation noise std = {OBS_NOISE}")
     print(f"  Series length = {N_STEPS + 1}\n")
 
@@ -234,6 +235,7 @@ def print_report(results: dict) -> None:
 # Visual diagnostics
 # ===================================================================
 
+
 def plot_diagnostics(
     z_obs: np.ndarray,
     x_true: np.ndarray,
@@ -244,6 +246,7 @@ def plot_diagnostics(
     """Generate and save all diagnostic plots."""
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         from matplotlib.gridspec import GridSpec
@@ -267,8 +270,14 @@ def plot_diagnostics(
     ax.plot(t, z_obs, ".", color="silver", markersize=1, alpha=0.5, label="Observations")
     ax.plot(t, x_true, "k-", linewidth=0.8, label="True hidden state")
     ax.plot(t, x_filt, "b-", linewidth=0.8, label="KF filtered")
-    ax.fill_between(t, x_filt - 2*filt_std, x_filt + 2*filt_std,
-                     color="blue", alpha=0.15, label="Filter 95% CI")
+    ax.fill_between(
+        t,
+        x_filt - 2 * filt_std,
+        x_filt + 2 * filt_std,
+        color="blue",
+        alpha=0.15,
+        label="Filter 95% CI",
+    )
     ax.set_ylabel("Level")
     ax.set_title("Kalman Filter on Synthetic OU Process")
     ax.legend(loc="upper right", fontsize=8)
@@ -276,8 +285,14 @@ def plot_diagnostics(
     ax = axes[1]
     ax.plot(t, x_true, "k-", linewidth=0.8, label="True hidden state")
     ax.plot(t, x_smooth, "r-", linewidth=0.8, label="RTS smoothed")
-    ax.fill_between(t, x_smooth - 2*smooth_std, x_smooth + 2*smooth_std,
-                     color="red", alpha=0.15, label="Smoother 95% CI")
+    ax.fill_between(
+        t,
+        x_smooth - 2 * smooth_std,
+        x_smooth + 2 * smooth_std,
+        color="red",
+        alpha=0.15,
+        label="Smoother 95% CI",
+    )
     ax.set_ylabel("Level")
     ax.set_title("RTS Smoother vs Truth")
     ax.legend(loc="upper right", fontsize=8)
@@ -312,8 +327,15 @@ def plot_diagnostics(
     ax1.set_ylabel("z")
 
     ax2 = fig.add_subplot(gs[0, 1])
-    ax2.hist(norm_innov, bins=60, density=True, color="steelblue", alpha=0.7,
-             edgecolor="white", linewidth=0.3)
+    ax2.hist(
+        norm_innov,
+        bins=60,
+        density=True,
+        color="steelblue",
+        alpha=0.7,
+        edgecolor="white",
+        linewidth=0.3,
+    )
     xg = np.linspace(-4, 4, 200)
     ax2.plot(xg, stats.norm.pdf(xg), "r-", linewidth=1.5, label="N(0,1)")
     ax2.set_title("Innovation Histogram vs N(0,1)")
@@ -330,11 +352,12 @@ def plot_diagnostics(
 
     ax4 = fig.add_subplot(gs[1, 1])
     max_lag = 30
-    acf = np.array([
-        float(np.corrcoef(norm_innov[:len(norm_innov) - k],
-                           norm_innov[k:])[0, 1])
-        for k in range(1, max_lag + 1)
-    ])
+    acf = np.array(
+        [
+            float(np.corrcoef(norm_innov[: len(norm_innov) - k], norm_innov[k:])[0, 1])
+            for k in range(1, max_lag + 1)
+        ]
+    )
     ax4.bar(np.arange(1, max_lag + 1), acf, color="steelblue", edgecolor="white")
     ci = 1.96 / np.sqrt(len(norm_innov))
     ax4.axhline(ci, color="r", linestyle="--", linewidth=0.8)
@@ -360,15 +383,17 @@ def plot_diagnostics(
 
     ax = axes[1]
     window = 200
-    err_sq_filt = (x_filt - x_true)**2
-    err_sq_smooth = (x_smooth - x_true)**2
-    rolling_rmse_f = np.sqrt(np.convolve(err_sq_filt, np.ones(window)/window, mode="valid"))
-    rolling_rmse_s = np.sqrt(np.convolve(err_sq_smooth, np.ones(window)/window, mode="valid"))
+    err_sq_filt = (x_filt - x_true) ** 2
+    err_sq_smooth = (x_smooth - x_true) ** 2
+    rolling_rmse_f = np.sqrt(np.convolve(err_sq_filt, np.ones(window) / window, mode="valid"))
+    rolling_rmse_s = np.sqrt(np.convolve(err_sq_smooth, np.ones(window) / window, mode="valid"))
     t_roll = np.arange(window - 1, n_pts)
-    ax.plot(t_roll, rolling_rmse_f, "b-", linewidth=0.8,
-            label=f"Filter RMSE ({window}-bar rolling)")
-    ax.plot(t_roll, rolling_rmse_s, "r-", linewidth=0.8,
-            label=f"Smoother RMSE ({window}-bar rolling)")
+    ax.plot(
+        t_roll, rolling_rmse_f, "b-", linewidth=0.8, label=f"Filter RMSE ({window}-bar rolling)"
+    )
+    ax.plot(
+        t_roll, rolling_rmse_s, "r-", linewidth=0.8, label=f"Smoother RMSE ({window}-bar rolling)"
+    )
     ax.axhline(OBS_NOISE, color="gray", linestyle="--", linewidth=0.8, label="Obs noise std")
     ax.set_xlabel("Time step")
     ax.set_ylabel("Rolling RMSE")
@@ -425,15 +450,19 @@ def plot_diagnostics(
     p_ss = sigma_eps_true**2
     s_ss = p_ss + OBS_NOISE**2
     k_ss = p_ss / s_ss
-    ax.axhline(k_ss, color="r", linestyle="--", linewidth=0.8,
-               label=f"Steady-state K = {k_ss:.4f}")
+    ax.axhline(k_ss, color="r", linestyle="--", linewidth=0.8, label=f"Steady-state K = {k_ss:.4f}")
     ax.legend()
 
     ax = axes[1]
     ax.plot(t, filt_std, linewidth=0.8, color="steelblue")
     p_ss_total = sigma_eps_true**2 * OBS_NOISE**2 / (sigma_eps_true**2 + OBS_NOISE**2)
-    ax.axhline(np.sqrt(p_ss_total), color="r", linestyle="--", linewidth=0.8,
-               label=f"Steady-state std = {np.sqrt(p_ss_total):.4f}")
+    ax.axhline(
+        np.sqrt(p_ss_total),
+        color="r",
+        linestyle="--",
+        linewidth=0.8,
+        label=f"Steady-state std = {np.sqrt(p_ss_total):.4f}",
+    )
     ax.set_xlabel("Time step")
     ax.set_ylabel("Filter std")
     ax.set_title("Filter Posterior Std Convergence")
@@ -449,6 +478,7 @@ def plot_diagnostics(
 # OU parameter recovery via batch OLS/MLE on filtered state
 # ===================================================================
 
+
 def test_ou_parameter_recovery(x_true: np.ndarray) -> None:
     """Fit OU model on the true (hidden) path and check parameter recovery."""
     print("\n" + "=" * 60)
@@ -459,13 +489,13 @@ def test_ou_parameter_recovery(x_true: np.ndarray) -> None:
     for method in ("ols", "mle"):
         res = ou.fit(x_true, method=method)
         theta_err = abs(res.theta - TRUE_THETA) / TRUE_THETA * 100
-        mu_err    = abs(res.mu - TRUE_MU) / TRUE_MU * 100
+        mu_err = abs(res.mu - TRUE_MU) / TRUE_MU * 100
         sigma_err = abs(res.sigma - TRUE_SIGMA) / TRUE_SIGMA * 100
         print(f"\n  {method.upper()}:")
         print(f"    theta = {res.theta:.4f}  (true {TRUE_THETA}, err {theta_err:.1f}%)")
         print(f"    mu    = {res.mu:.4f}  (true {TRUE_MU}, err {mu_err:.1f}%)")
         print(f"    sigma = {res.sigma:.4f}  (true {TRUE_SIGMA}, err {sigma_err:.1f}%)")
-        print(f"    half-life = {res.half_life:.2f}  (true {np.log(2)/TRUE_THETA:.2f})")
+        print(f"    half-life = {res.half_life:.2f}  (true {np.log(2) / TRUE_THETA:.2f})")
         lb_q, lb_p = ou.ljung_box(x_true, lags=10)
         tag = "PASS" if lb_p > 0.05 else "FAIL"
         print(f"    Ljung-Box(10): Q={lb_q:.2f}, p={lb_p:.4f}  [{tag}]")
@@ -474,6 +504,7 @@ def test_ou_parameter_recovery(x_true: np.ndarray) -> None:
 # ===================================================================
 # Main
 # ===================================================================
+
 
 def main() -> None:
     print("Generating synthetic OU data...")

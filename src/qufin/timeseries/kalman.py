@@ -27,33 +27,35 @@ import numpy as np
 # Result containers
 # ---------------------------------------------------------------------------
 
+
 @dataclass(slots=True)
 class FilterResult:
     """Outputs of a forward Kalman filter pass over T observations."""
 
-    states: np.ndarray            # (T, n)  filtered state mean
-    covariances: np.ndarray       # (T, n, n)  filtered state covariance
-    pred_states: np.ndarray       # (T, n)  one-step predicted state mean
+    states: np.ndarray  # (T, n)  filtered state mean
+    covariances: np.ndarray  # (T, n, n)  filtered state covariance
+    pred_states: np.ndarray  # (T, n)  one-step predicted state mean
     pred_covariances: np.ndarray  # (T, n, n)  one-step predicted covariance
-    innovations: np.ndarray       # (T, m)  innovation sequence (NaN for missing obs)
-    innovation_covs: np.ndarray   # (T, m, m)  innovation covariance
-    gains: np.ndarray             # (T, n, m)  Kalman gain matrices
-    log_likelihood: float         # total log-likelihood (missing obs skipped)
+    innovations: np.ndarray  # (T, m)  innovation sequence (NaN for missing obs)
+    innovation_covs: np.ndarray  # (T, m, m)  innovation covariance
+    gains: np.ndarray  # (T, n, m)  Kalman gain matrices
+    log_likelihood: float  # total log-likelihood (missing obs skipped)
 
 
 @dataclass(slots=True)
 class SmootherResult:
     """Outputs of an RTS backward smoother pass."""
 
-    states: np.ndarray       # (T, n)  smoothed state mean
+    states: np.ndarray  # (T, n)  smoothed state mean
     covariances: np.ndarray  # (T, n, n)  smoothed state covariance
-    gains: np.ndarray        # (T-1, n, n)  RTS smoother gains
-    log_likelihood: float    # same as the forward filter log-likelihood
+    gains: np.ndarray  # (T-1, n, n)  RTS smoother gains
+    log_likelihood: float  # same as the forward filter log-likelihood
 
 
 # ---------------------------------------------------------------------------
 # Core filter
 # ---------------------------------------------------------------------------
+
 
 class KalmanFilter:
     """
@@ -250,11 +252,11 @@ class KalmanFilter:
         z = np.asarray(z, dtype=float).ravel()
         innovation = z - self.H @ self.x
 
-        PHt = self.P @ self.H.T                         # (n, m)
-        S = self._sym(self.H @ PHt + self.R)             # (m, m)
+        PHt = self.P @ self.H.T  # (n, m)
+        S = self._sym(self.H @ PHt + self.R)  # (m, m)
 
         # Gain: K = P H^T S^{-1}  — solved via Cholesky for stability
-        K = self._solve_pd(S.T, PHt.T).T                # (n, m)
+        K = self._solve_pd(S.T, PHt.T).T  # (n, m)
 
         self.x = self.x + K @ innovation
 
@@ -297,46 +299,44 @@ class KalmanFilter:
         """
         obs = np.asarray(observations, dtype=float)
         if obs.ndim == 1:
-            obs = obs.reshape(-1, 1)         # (T, 1) for scalar observations
+            obs = obs.reshape(-1, 1)  # (T, 1) for scalar observations
         T = obs.shape[0]
 
         self.reset(x0, P0)
 
-        states      = np.empty((T, self.n))
-        covs        = np.empty((T, self.n, self.n))
+        states = np.empty((T, self.n))
+        covs = np.empty((T, self.n, self.n))
         pred_states = np.empty((T, self.n))
-        pred_covs   = np.empty((T, self.n, self.n))
+        pred_covs = np.empty((T, self.n, self.n))
         innovations = np.full((T, self.m), np.nan)
-        innov_covs  = np.full((T, self.m, self.m), np.nan)
-        gains       = np.zeros((T, self.n, self.m))
-        log_lik     = 0.0
+        innov_covs = np.full((T, self.m, self.m), np.nan)
+        gains = np.zeros((T, self.n, self.m))
+        log_lik = 0.0
 
         for t in range(T):
             u = controls[t] if controls is not None else None
             x_pred, P_pred = self.predict(u)
             pred_states[t] = x_pred
-            pred_covs[t]   = P_pred
+            pred_covs[t] = P_pred
 
             z = obs[t]
             if np.any(np.isnan(z)):
                 # Missing observation: propagate prediction, skip update
                 states[t] = x_pred
-                covs[t]   = P_pred
+                covs[t] = P_pred
             else:
                 x_f, P_f, innov, S, K = self.update(z)
-                states[t]      = x_f
-                covs[t]        = P_f
+                states[t] = x_f
+                covs[t] = P_f
                 innovations[t] = innov
-                innov_covs[t]  = S
-                gains[t]       = K
+                innov_covs[t] = S
+                gains[t] = K
 
                 # Log-likelihood: -½(m ln 2π + ln|S| + ν^T S^{-1} ν)
                 sign, logdet = np.linalg.slogdet(S)
                 if sign > 0:
                     log_lik += -0.5 * (
-                        self.m * np.log(2.0 * np.pi)
-                        + logdet
-                        + innov @ self._solve_pd(S, innov)
+                        self.m * np.log(2.0 * np.pi) + logdet + innov @ self._solve_pd(S, innov)
                     )
 
         return FilterResult(
@@ -368,16 +368,16 @@ class KalmanFilter:
         SmootherResult
         """
         T = result.states.shape[0]
-        x_s = result.states.copy()      # (T, n)
-        P_s = result.covariances.copy() # (T, n, n)
-        G   = np.empty((T - 1, self.n, self.n))
+        x_s = result.states.copy()  # (T, n)
+        P_s = result.covariances.copy()  # (T, n, n)
+        G = np.empty((T - 1, self.n, self.n))
 
         for t in range(T - 2, -1, -1):
             P_pred = result.pred_covariances[t + 1]  # P_{t+1|t}
 
             # Smoother gain: G_t = P_t F^T P_{t+1|t}^{-1}
             # Solve P_{t+1|t} G_t^T = (P_t F^T)^T  → G_t = solve(P_{t+1|t}, FP_t^T)^T
-            FPt = self.F @ result.covariances[t]     # (n, n)
+            FPt = self.F @ result.covariances[t]  # (n, n)
             G[t] = self._solve_pd(P_pred.T, FPt.T).T  # (n, n)
 
             dx = x_s[t + 1] - result.pred_states[t + 1]

@@ -26,6 +26,7 @@ RNG = np.random.default_rng(0)
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def synthetic_pairs(
     T: int = 500,
     beta_true: float = 1.5,
@@ -54,6 +55,7 @@ def drifting_beta_pairs(
 # HedgeRatioFilter — construction
 # ---------------------------------------------------------------------------
 
+
 class TestHedgeRatioFilterConstruction:
     def test_negative_delta_raises(self):
         with pytest.raises(ValueError):
@@ -77,6 +79,7 @@ class TestHedgeRatioFilterConstruction:
 # ---------------------------------------------------------------------------
 # HedgeRatioFilter — step interface
 # ---------------------------------------------------------------------------
+
 
 class TestHedgeRatioFilterStep:
     def test_step_returns_three_floats(self):
@@ -114,6 +117,7 @@ class TestHedgeRatioFilterStep:
 # HedgeRatioFilter — constant hedge ratio recovery
 # ---------------------------------------------------------------------------
 
+
 class TestHedgeRatioFilterAccuracy:
     def test_recovers_constant_beta(self):
         """After seeing 400 obs the filter should be within 0.05 of true β."""
@@ -146,6 +150,7 @@ class TestHedgeRatioFilterAccuracy:
 # HedgeRatioFilter — batch == step-by-step
 # ---------------------------------------------------------------------------
 
+
 class TestHedgeRatioFilterConsistency:
     def test_filter_matches_step_by_step(self):
         y, x = synthetic_pairs(T=100)
@@ -156,16 +161,19 @@ class TestHedgeRatioFilterConsistency:
         betas, alphas, spreads = [], [], []
         for yi, xi in zip(y, x):
             b, a, s = f2.step(float(yi), float(xi))
-            betas.append(b); alphas.append(a); spreads.append(s)
+            betas.append(b)
+            alphas.append(a)
+            spreads.append(s)
 
-        np.testing.assert_allclose(df["beta"].to_numpy(),   betas,   atol=1e-12)
-        np.testing.assert_allclose(df["alpha"].to_numpy(),  alphas,  atol=1e-12)
+        np.testing.assert_allclose(df["beta"].to_numpy(), betas, atol=1e-12)
+        np.testing.assert_allclose(df["alpha"].to_numpy(), alphas, atol=1e-12)
         np.testing.assert_allclose(df["spread"].to_numpy(), spreads, atol=1e-12)
 
 
 # ---------------------------------------------------------------------------
 # HedgeRatioFilter — DataFrame API
 # ---------------------------------------------------------------------------
+
 
 class TestHedgeRatioFilterDataFrameAPI:
     def test_returns_polars_dataframe(self):
@@ -206,6 +214,7 @@ class TestHedgeRatioFilterDataFrameAPI:
 # TrendFilter — construction
 # ---------------------------------------------------------------------------
 
+
 class TestTrendFilterConstruction:
     def test_negative_process_var_raises(self):
         with pytest.raises(ValueError):
@@ -219,6 +228,7 @@ class TestTrendFilterConstruction:
 # ---------------------------------------------------------------------------
 # TrendFilter — forward filter
 # ---------------------------------------------------------------------------
+
 
 class TestTrendFilterForward:
     def test_returns_polars_dataframe(self):
@@ -251,7 +261,7 @@ class TestTrendFilterForward:
         f = TrendFilter(process_var=1e-5, obs_var=4.0)
         df = f.filter(noisy)
 
-        rmse_raw  = float(np.sqrt(np.mean((noisy - truth) ** 2)))
+        rmse_raw = float(np.sqrt(np.mean((noisy - truth) ** 2)))
         rmse_filt = float(np.sqrt(np.mean((df["level"].to_numpy() - truth) ** 2)))
         assert rmse_filt < rmse_raw
 
@@ -282,6 +292,7 @@ class TestTrendFilterForward:
 # TrendFilter — RTS smoother
 # ---------------------------------------------------------------------------
 
+
 class TestTrendFilterSmoother:
     def test_smooth_flag_runs(self):
         prices = np.cumsum(RNG.normal(size=80)) + 100
@@ -296,10 +307,10 @@ class TestTrendFilterSmoother:
         f1 = TrendFilter(process_var=1e-4, obs_var=1.0)
         f2 = TrendFilter(process_var=1e-4, obs_var=1.0)
 
-        df_filt   = f1.filter(prices, smooth=False)
+        df_filt = f1.filter(prices, smooth=False)
         df_smooth = f2.filter(prices, smooth=True)
 
-        filt_var   = df_filt["level_std"].to_numpy() ** 2
+        filt_var = df_filt["level_std"].to_numpy() ** 2
         smooth_var = df_smooth["level_std"].to_numpy() ** 2
         assert np.all(smooth_var <= filt_var + 1e-10)
 
@@ -310,10 +321,10 @@ class TestTrendFilterSmoother:
 
         f1 = TrendFilter(process_var=1e-5, obs_var=4.0)
         f2 = TrendFilter(process_var=1e-5, obs_var=4.0)
-        df_filt   = f1.filter(noisy, smooth=False)
+        df_filt = f1.filter(noisy, smooth=False)
         df_smooth = f2.filter(noisy, smooth=True)
 
-        rmse_filt   = float(np.sqrt(np.mean((df_filt["level"].to_numpy()   - truth) ** 2)))
+        rmse_filt = float(np.sqrt(np.mean((df_filt["level"].to_numpy() - truth) ** 2)))
         rmse_smooth = float(np.sqrt(np.mean((df_smooth["level"].to_numpy() - truth) ** 2)))
         assert rmse_smooth <= rmse_filt + 1e-6
 
@@ -321,6 +332,7 @@ class TestTrendFilterSmoother:
 # ---------------------------------------------------------------------------
 # TrendFilter — log-likelihood
 # ---------------------------------------------------------------------------
+
 
 class TestTrendFilterLogLikelihood:
     def test_ll_is_finite_negative(self):
@@ -336,6 +348,6 @@ class TestTrendFilterLogLikelihood:
         truth = np.linspace(10, 50, T)
         prices = truth + RNG.normal(0, sigma_obs, T)
 
-        f_good = TrendFilter(process_var=1e-5, obs_var=sigma_obs ** 2)
-        f_bad  = TrendFilter(process_var=1e-5, obs_var=100.0)
+        f_good = TrendFilter(process_var=1e-5, obs_var=sigma_obs**2)
+        f_bad = TrendFilter(process_var=1e-5, obs_var=100.0)
         assert f_good.log_likelihood(prices) > f_bad.log_likelihood(prices)

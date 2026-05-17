@@ -71,13 +71,15 @@ def _to_numpy_1d(x: _SeriesLike) -> np.ndarray:
         raise ValueError(f"expected 1-D array, got shape {arr.shape}")
     return arr
 
-_ANNUAL = np.sqrt(252)   # annualisation for daily Sharpe
+
+_ANNUAL = np.sqrt(252)  # annualisation for daily Sharpe
 _LOG_2PI = np.log(2.0 * np.pi)
 
 
 # ---------------------------------------------------------------------------
 # Parameter container
 # ---------------------------------------------------------------------------
+
 
 @dataclass(slots=True)
 class StrategyParams:
@@ -149,6 +151,7 @@ class StrategyParams:
 # Result containers
 # ---------------------------------------------------------------------------
 
+
 @dataclass(slots=True)
 class BacktestResult:
     """
@@ -159,14 +162,14 @@ class BacktestResult:
     earned from bar t to bar t+1 while holding ``signal[t]``.
     """
 
-    mu: np.ndarray           # (T,) filtered OU long-run mean
-    theta: np.ndarray        # (T,) filtered mean-reversion speed θ_t
-    half_life: np.ndarray    # (T,) ln(2) / θ_t
-    sigma_eq: np.ndarray     # (T,) rolling estimate of stationary std
-    z_score: np.ndarray      # (T,) (price − μ_t) / σ_eq,t
-    signal: np.ndarray       # (T,) position ∈ {−1, 0, +1}
+    mu: np.ndarray  # (T,) filtered OU long-run mean
+    theta: np.ndarray  # (T,) filtered mean-reversion speed θ_t
+    half_life: np.ndarray  # (T,) ln(2) / θ_t
+    sigma_eq: np.ndarray  # (T,) rolling estimate of stationary std
+    z_score: np.ndarray  # (T,) (price − μ_t) / σ_eq,t
+    signal: np.ndarray  # (T,) position ∈ {−1, 0, +1}
     log_returns: np.ndarray  # (T−1,) signal[t] × Δ log(price[t+1])
-    prices: np.ndarray       # (T,) original prices
+    prices: np.ndarray  # (T,) original prices
 
     # ------------------------------------------------------------------
 
@@ -202,13 +205,13 @@ class BacktestResult:
         strat_ret = np.concatenate([[np.nan], self.log_returns])
         return pl.DataFrame(
             {
-                "price":     self.prices,
-                "mu":        self.mu,
-                "theta":     self.theta,
+                "price": self.prices,
+                "mu": self.mu,
+                "theta": self.theta,
                 "half_life": self.half_life,
-                "sigma_eq":  self.sigma_eq,
-                "z_score":   self.z_score,
-                "signal":    self.signal,
+                "sigma_eq": self.sigma_eq,
+                "z_score": self.z_score,
+                "signal": self.signal,
                 "strat_ret": strat_ret,
             }
         )
@@ -262,6 +265,7 @@ class TrainResult:
 # Strategy
 # ---------------------------------------------------------------------------
 
+
 class MeanReversionStrategy:
     """
     Adaptive OU mean-reversion strategy with a Kalman-filtered parameter update.
@@ -310,9 +314,7 @@ class MeanReversionStrategy:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _ou_from_ar1(
-        beta: float, alpha: float, dt: float
-    ) -> tuple[float, float]:
+    def _ou_from_ar1(beta: float, alpha: float, dt: float) -> tuple[float, float]:
         """Return (θ, μ) from AR(1) coefficients, with numerical guards."""
         b = float(np.clip(beta, 1e-9, 1.0 - 1e-9))
         theta = -np.log(b) / dt
@@ -320,16 +322,14 @@ class MeanReversionStrategy:
         return theta, mu
 
     @staticmethod
-    def _sigma_eq(
-        innovations: np.ndarray, beta: float
-    ) -> float:
+    def _sigma_eq(innovations: np.ndarray, beta: float) -> float:
         """
         σ_eq from rolling innovations.
 
         Var(ν_t) ≈ σ²_eq · (1 − β²)  ⟹  σ_eq = std(ν) / √(1 − β²)
         """
         b = float(np.clip(beta, 1e-9, 1.0 - 1e-9))
-        denom = np.sqrt(max(1.0 - b ** 2, 1e-9))
+        denom = np.sqrt(max(1.0 - b**2, 1e-9))
         valid = innovations[~np.isnan(innovations)]
         if len(valid) < 3:
             return np.nan
@@ -357,11 +357,11 @@ class MeanReversionStrategy:
 
         kf = KalmanFilter(
             F=np.eye(2),
-            H=np.array([[1.0, 1.0]]),      # placeholder; updated per bar
+            H=np.array([[1.0, 1.0]]),  # placeholder; updated per bar
             Q=params.delta * np.eye(2),
             R=np.array([[params.obs_var]]),
             x0=np.array([b_init, a_init]),
-            P0=obs_var_init * np.eye(2),   # stable init, not diffuse
+            P0=obs_var_init * np.eye(2),  # stable init, not diffuse
         )
 
         innovations: list[float] = []
@@ -378,9 +378,7 @@ class MeanReversionStrategy:
     # Core simulation loop (used by run() and fit())
     # ------------------------------------------------------------------
 
-    def _simulate(
-        self, prices: np.ndarray, params: StrategyParams
-    ) -> dict[str, np.ndarray]:
+    def _simulate(self, prices: np.ndarray, params: StrategyParams) -> dict[str, np.ndarray]:
         """
         Causal forward pass over a price series.
 
@@ -393,11 +391,11 @@ class MeanReversionStrategy:
         # Phase 1 — OLS initialisation + KF warm-up
         kf, warmup_innov = self._build_kf_from_ols(prices[:warmup], params)
 
-        mu_arr       = np.full(T, np.nan)
-        theta_arr    = np.full(T, np.nan)
+        mu_arr = np.full(T, np.nan)
+        theta_arr = np.full(T, np.nan)
         sigma_eq_arr = np.full(T, np.nan)
-        z_arr        = np.full(T, np.nan)
-        innov_arr    = np.full(T, np.nan)
+        z_arr = np.full(T, np.nan)
+        innov_arr = np.full(T, np.nan)
 
         # Store warm-up innovations in innov_arr (indices 1..warmup-1)
         for i, v in enumerate(warmup_innov):
@@ -415,7 +413,7 @@ class MeanReversionStrategy:
             beta, alpha = float(kf.x[0]), float(kf.x[1])
 
             theta_t, mu_t = self._ou_from_ar1(beta, alpha, params.dt)
-            mu_arr[t]    = mu_t
+            mu_arr[t] = mu_t
             theta_arr[t] = theta_t
 
             # Rolling σ_eq over the last vol_window innovations
@@ -430,8 +428,8 @@ class MeanReversionStrategy:
         signal = np.zeros(T, dtype=float)
         cur_pos = 0.0
         entry_z = params.entry_z
-        exit_z  = params.exit_z
-        stop_z  = params.stop_z
+        exit_z = params.exit_z
+        stop_z = params.stop_z
 
         for t in range(warmup, T):
             z = z_arr[t]
@@ -439,17 +437,17 @@ class MeanReversionStrategy:
                 signal[t] = cur_pos
                 continue
 
-            if cur_pos != 0.0 and abs(z) > stop_z:     # stop-loss
+            if cur_pos != 0.0 and abs(z) > stop_z:  # stop-loss
                 cur_pos = 0.0
-            elif cur_pos == 0.0:                         # flat — check entry
+            elif cur_pos == 0.0:  # flat — check entry
                 if z < -entry_z:
-                    cur_pos = 1.0                        # long: price too low
+                    cur_pos = 1.0  # long: price too low
                 elif z > entry_z:
-                    cur_pos = -1.0                       # short: price too high
-            elif cur_pos > 0.0:                          # long — check exit
+                    cur_pos = -1.0  # short: price too high
+            elif cur_pos > 0.0:  # long — check exit
                 if z >= -exit_z:
                     cur_pos = 0.0
-            else:                                        # short — check exit
+            else:  # short — check exit
                 if z <= exit_z:
                     cur_pos = 0.0
 
@@ -465,12 +463,12 @@ class MeanReversionStrategy:
         hl[valid] = np.log(2.0) / theta_arr[valid]
 
         return {
-            "mu":         mu_arr,
-            "theta":      theta_arr,
-            "half_life":  hl,
-            "sigma_eq":   sigma_eq_arr,
-            "z_score":    z_arr,
-            "signal":     signal,
+            "mu": mu_arr,
+            "theta": theta_arr,
+            "half_life": hl,
+            "sigma_eq": sigma_eq_arr,
+            "z_score": z_arr,
+            "signal": signal,
             "log_returns": strat_ret,
             "innovations": innov_arr,
         }
@@ -479,9 +477,7 @@ class MeanReversionStrategy:
     # Log-likelihood (exact KF, used for 'likelihood' training)
     # ------------------------------------------------------------------
 
-    def _log_likelihood(
-        self, prices: np.ndarray, params: StrategyParams
-    ) -> float:
+    def _log_likelihood(self, prices: np.ndarray, params: StrategyParams) -> float:
         """
         Exact Kalman Filter log-likelihood for the time-varying AR(1) model.
 
@@ -503,7 +499,7 @@ class MeanReversionStrategy:
             nu_t = prices[t] - float((kf.H @ kf.x)[0])
 
             if S_t > 1e-14:
-                ll += -0.5 * (_LOG_2PI + np.log(S_t) + nu_t ** 2 / S_t)
+                ll += -0.5 * (_LOG_2PI + np.log(S_t) + nu_t**2 / S_t)
 
             kf.update(np.array([prices[t]]))
 
@@ -533,9 +529,7 @@ class MeanReversionStrategy:
         arr = _to_numpy_1d(prices)
         min_len = self.params.vol_window + 5
         if len(arr) < min_len:
-            raise ValueError(
-                f"Need ≥ {min_len} bars (vol_window + 5). Got {len(arr)}."
-            )
+            raise ValueError(f"Need ≥ {min_len} bars (vol_window + 5). Got {len(arr)}.")
 
         out = self._simulate(arr, self.params)
         return BacktestResult(
@@ -590,8 +584,12 @@ class MeanReversionStrategy:
         warmup = self.params.vol_window
         price = float(price)
         _nan_state = {
-            "signal": 0.0, "z_score": np.nan, "mu": np.nan,
-            "theta": np.nan, "half_life": np.nan, "sigma_eq": np.nan,
+            "signal": 0.0,
+            "z_score": np.nan,
+            "mu": np.nan,
+            "theta": np.nan,
+            "half_life": np.nan,
+            "sigma_eq": np.nan,
         }
 
         # ---- Warm-up phase: buffer first vol_window prices ------------
@@ -603,7 +601,7 @@ class MeanReversionStrategy:
                 buf = np.array(self._warmup_buffer)
                 self._kf, innov_list = self._build_kf_from_ols(buf, self.params)
                 self._innovations = innov_list
-                self._prev_price = price   # last bar of warm-up
+                self._prev_price = price  # last bar of warm-up
 
             return _nan_state
 
@@ -642,12 +640,12 @@ class MeanReversionStrategy:
         self._prev_price = price
         hl = np.log(2.0) / theta if theta > 0 else np.nan
         return {
-            "signal":    self._cur_pos,
-            "z_score":   z,
-            "mu":        mu,
-            "theta":     theta,
+            "signal": self._cur_pos,
+            "z_score": z,
+            "mu": mu,
+            "theta": theta,
             "half_life": hl,
-            "sigma_eq":  sig,
+            "sigma_eq": sig,
         }
 
     # ------------------------------------------------------------------
@@ -711,9 +709,7 @@ class MeanReversionStrategy:
     # Training internals
     # ------------------------------------------------------------------
 
-    def _unpack_sharpe_x(
-        self, x: np.ndarray, entry_z_ref: float
-    ) -> StrategyParams:
+    def _unpack_sharpe_x(self, x: np.ndarray, entry_z_ref: float) -> StrategyParams:
         """
         Decode the Nelder-Mead parameter vector → StrategyParams.
 
@@ -724,24 +720,25 @@ class MeanReversionStrategy:
             x[3] = raw_exit_frac  → exit_z = clip(sigmoid(x[3])·entry_z, 0, entry_z−0.05)
             x[4] = log(stop_z)    (clipped so stop_z > entry_z)
         """
-        delta   = float(np.exp(np.clip(x[0], -16.0, 0.0)))
+        delta = float(np.exp(np.clip(x[0], -16.0, 0.0)))
         obs_var = float(np.exp(np.clip(x[1], -4.0, 8.0)))
         entry_z = float(np.clip(x[2], 0.3, 4.0))
         # exit_z is expressed as a fraction of entry_z via a sigmoid
-        exit_frac = 1.0 / (1.0 + np.exp(-x[3]))   # (0, 1)
+        exit_frac = 1.0 / (1.0 + np.exp(-x[3]))  # (0, 1)
         exit_z = float(np.clip(exit_frac * entry_z, 0.0, entry_z - 0.05))
-        stop_z  = float(np.exp(np.clip(x[4], np.log(entry_z + 0.1), 2.3)))
-        stop_z  = max(stop_z, entry_z + 0.05)
+        stop_z = float(np.exp(np.clip(x[4], np.log(entry_z + 0.1), 2.3)))
+        stop_z = max(stop_z, entry_z + 0.05)
         return StrategyParams(
-            delta=delta, obs_var=obs_var,
-            entry_z=entry_z, exit_z=exit_z, stop_z=stop_z,
+            delta=delta,
+            obs_var=obs_var,
+            entry_z=entry_z,
+            exit_z=exit_z,
+            stop_z=stop_z,
             vol_window=self.params.vol_window,
             dt=self.params.dt,
         )
 
-    def _fit_sharpe(
-        self, prices: np.ndarray, n_restarts: int, verbose: bool
-    ) -> TrainResult:
+    def _fit_sharpe(self, prices: np.ndarray, n_restarts: int, verbose: bool) -> TrainResult:
         rng = np.random.default_rng(42)
         best_neg_sharpe = np.inf
         best_result: optimize.OptimizeResult | None = None
@@ -749,14 +746,16 @@ class MeanReversionStrategy:
         # Encode current params as starting point
         p0 = self.params
         exit_frac0 = p0.exit_z / max(p0.entry_z, 1e-3)
-        raw_exit0  = np.log(exit_frac0 / max(1.0 - exit_frac0, 1e-9))
-        x0 = np.array([
-            np.log(p0.delta),
-            np.log(p0.obs_var),
-            p0.entry_z,
-            raw_exit0,
-            np.log(p0.stop_z),
-        ])
+        raw_exit0 = np.log(exit_frac0 / max(1.0 - exit_frac0, 1e-9))
+        x0 = np.array(
+            [
+                np.log(p0.delta),
+                np.log(p0.obs_var),
+                p0.entry_z,
+                raw_exit0,
+                np.log(p0.stop_z),
+            ]
+        )
 
         def objective(x: np.ndarray) -> float:
             try:
@@ -766,7 +765,7 @@ class MeanReversionStrategy:
                 std = float(np.std(r))
                 traded = float(np.sum(np.abs(out["signal"])))
                 if std < 1e-10 or traded < 5.0:
-                    return 500.0          # penalty: flat strategy
+                    return 500.0  # penalty: flat strategy
                 return float(-np.mean(r) / std * _ANNUAL)
             except Exception:
                 return 500.0
@@ -780,8 +779,7 @@ class MeanReversionStrategy:
                 options={"maxiter": 3000, "xatol": 1e-5, "fatol": 1e-5},
             )
             if verbose:
-                print(f"  restart {restart + 1}/{n_restarts}  "
-                      f"Sharpe = {-res.fun:.4f}")
+                print(f"  restart {restart + 1}/{n_restarts}  Sharpe = {-res.fun:.4f}")
             if res.fun < best_neg_sharpe:
                 best_neg_sharpe = res.fun
                 best_result = res
@@ -810,13 +808,17 @@ class MeanReversionStrategy:
         x0 = np.array([np.log(p0.delta), np.log(p0.obs_var)])
 
         def neg_ll(x: np.ndarray) -> float:
-            delta   = float(np.exp(np.clip(x[0], -16.0, 0.0)))
+            delta = float(np.exp(np.clip(x[0], -16.0, 0.0)))
             obs_var = float(np.exp(np.clip(x[1], -4.0, 8.0)))
             try:
                 p = StrategyParams(
-                    delta=delta, obs_var=obs_var,
-                    entry_z=p0.entry_z, exit_z=p0.exit_z, stop_z=p0.stop_z,
-                    vol_window=p0.vol_window, dt=p0.dt,
+                    delta=delta,
+                    obs_var=obs_var,
+                    entry_z=p0.entry_z,
+                    exit_z=p0.exit_z,
+                    stop_z=p0.stop_z,
+                    vol_window=p0.vol_window,
+                    dt=p0.dt,
                 )
                 return float(-self._log_likelihood(prices, p))
             except Exception:
@@ -829,22 +831,25 @@ class MeanReversionStrategy:
             options={"maxiter": 2000, "ftol": 1e-14, "gtol": 1e-8},
         )
         if verbose:
-            print(f"  L-BFGS-B: log-lik = {-res.fun:.2f}  "
-                  f"converged = {res.success}")
+            print(f"  L-BFGS-B: log-lik = {-res.fun:.2f}  converged = {res.success}")
 
-        delta_opt   = float(np.exp(np.clip(res.x[0], -16.0, 0.0)))
+        delta_opt = float(np.exp(np.clip(res.x[0], -16.0, 0.0)))
         obs_var_opt = float(np.exp(np.clip(res.x[1], -4.0, 8.0)))
         best_params = StrategyParams(
-            delta=delta_opt, obs_var=obs_var_opt,
-            entry_z=p0.entry_z, exit_z=p0.exit_z, stop_z=p0.stop_z,
-            vol_window=p0.vol_window, dt=p0.dt,
+            delta=delta_opt,
+            obs_var=obs_var_opt,
+            entry_z=p0.entry_z,
+            exit_z=p0.exit_z,
+            stop_z=p0.stop_z,
+            vol_window=p0.vol_window,
+            dt=p0.dt,
         )
 
         # Compute resulting Sharpe for the report
         out = self._simulate(prices, best_params)
-        r   = out["log_returns"]
+        r = out["log_returns"]
         std = float(np.std(r))
-        sh  = float(np.mean(r) / max(std, 1e-10) * _ANNUAL)
+        sh = float(np.mean(r) / max(std, 1e-10) * _ANNUAL)
 
         return TrainResult(
             params=best_params,

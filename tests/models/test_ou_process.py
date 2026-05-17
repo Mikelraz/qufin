@@ -35,9 +35,9 @@ from qufin.models.ou_process import OrnsteinUhlenbeck, OUFitResult
 RNG = np.random.default_rng(7)
 
 TRUE_THETA = 0.15
-TRUE_MU    = 2.0
+TRUE_MU = 2.0
 TRUE_SIGMA = 0.4
-DT         = 1.0
+DT = 1.0
 
 
 def make_ou(theta=TRUE_THETA, mu=TRUE_MU, sigma=TRUE_SIGMA, dt=DT) -> OrnsteinUhlenbeck:
@@ -54,6 +54,7 @@ def simulate_long(T: int = 5_000, seed: int = 42) -> np.ndarray:
 # Construction & validation
 # ---------------------------------------------------------------------------
 
+
 class TestConstruction:
     def test_defaults_unset(self):
         ou = OrnsteinUhlenbeck()
@@ -63,7 +64,7 @@ class TestConstruction:
     def test_valid_params_stored(self):
         ou = make_ou()
         assert ou.theta == pytest.approx(TRUE_THETA)
-        assert ou.mu    == pytest.approx(TRUE_MU)
+        assert ou.mu == pytest.approx(TRUE_MU)
         assert ou.sigma == pytest.approx(TRUE_SIGMA)
 
     def test_negative_theta_raises(self):
@@ -103,6 +104,7 @@ class TestConstruction:
 # Derived quantities
 # ---------------------------------------------------------------------------
 
+
 class TestDerivedQuantities:
     def test_half_life(self):
         ou = make_ou(theta=0.2)
@@ -115,7 +117,7 @@ class TestDerivedQuantities:
 
     def test_stationary_var(self):
         ou = make_ou()
-        assert ou.stationary_var == pytest.approx(ou.stationary_std ** 2)
+        assert ou.stationary_var == pytest.approx(ou.stationary_std**2)
 
     def test_autocorrelation_lag0(self):
         ou = make_ou()
@@ -139,6 +141,7 @@ class TestDerivedQuantities:
 # ---------------------------------------------------------------------------
 # OLS fit
 # ---------------------------------------------------------------------------
+
 
 class TestOLSFit:
     def test_returns_fit_result(self):
@@ -207,6 +210,7 @@ class TestOLSFit:
 # MLE fit
 # ---------------------------------------------------------------------------
 
+
 class TestMLEFit:
     def test_returns_fit_result(self):
         x = simulate_long(T=500)
@@ -244,13 +248,14 @@ class TestMLEFit:
         ou_ols.fit(x, method="ols")
         ou_mle.fit(x, method="mle")
         assert ou_ols.theta == pytest.approx(ou_mle.theta, rel=0.05)
-        assert ou_ols.mu    == pytest.approx(ou_mle.mu,    abs=0.05)
+        assert ou_ols.mu == pytest.approx(ou_mle.mu, abs=0.05)
         assert ou_ols.sigma == pytest.approx(ou_mle.sigma, rel=0.05)
 
 
 # ---------------------------------------------------------------------------
 # Simulation
 # ---------------------------------------------------------------------------
+
 
 class TestSimulation:
     def test_single_path_shape(self):
@@ -310,6 +315,7 @@ class TestSimulation:
 # Log-likelihood
 # ---------------------------------------------------------------------------
 
+
 class TestLogLikelihood:
     def test_finite_and_negative(self):
         x = simulate_long(T=200)
@@ -322,7 +328,7 @@ class TestLogLikelihood:
     def test_correct_model_beats_misspecified(self):
         x = simulate_long(T=1_000)
         ou_good = OrnsteinUhlenbeck(theta=TRUE_THETA, mu=TRUE_MU, sigma=TRUE_SIGMA, dt=DT)
-        ou_bad  = OrnsteinUhlenbeck(theta=5.0,        mu=0.0,     sigma=5.0,        dt=DT)
+        ou_bad = OrnsteinUhlenbeck(theta=5.0, mu=0.0, sigma=5.0, dt=DT)
         assert ou_good.log_likelihood(x) > ou_bad.log_likelihood(x)
 
     def test_unfitted_raises(self):
@@ -334,6 +340,7 @@ class TestLogLikelihood:
 # ---------------------------------------------------------------------------
 # z_score
 # ---------------------------------------------------------------------------
+
 
 class TestZScore:
     def test_at_mean_is_zero(self):
@@ -361,6 +368,7 @@ class TestZScore:
 # Residuals
 # ---------------------------------------------------------------------------
 
+
 class TestResiduals:
     def test_length(self):
         x = simulate_long(T=200)
@@ -385,6 +393,7 @@ class TestResiduals:
 # ---------------------------------------------------------------------------
 # band_probability
 # ---------------------------------------------------------------------------
+
 
 class TestBandProbability:
     def test_one_sigma_band_near_68pct(self):
@@ -412,6 +421,7 @@ class TestBandProbability:
 # expected_crossing_time
 # ---------------------------------------------------------------------------
 
+
 class TestExpectedCrossingTime:
     def test_at_mean_returns_zero(self):
         ou = make_ou()
@@ -432,6 +442,7 @@ class TestExpectedCrossingTime:
 # ---------------------------------------------------------------------------
 # Ljung-Box test
 # ---------------------------------------------------------------------------
+
 
 class TestLjungBox:
     def test_returns_two_floats(self):
@@ -463,6 +474,7 @@ class TestLjungBox:
 # Summary / OUFitResult
 # ---------------------------------------------------------------------------
 
+
 class TestSummary:
     def test_fitted_summary_non_empty(self):
         x = simulate_long(T=200)
@@ -490,12 +502,13 @@ class TestSummary:
 # Edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestEdgeCases:
     def test_unit_root_warns(self):
         # Create a near-unit-root series
         rw = np.cumsum(RNG.normal(0, 1, 500))
         ou = OrnsteinUhlenbeck(dt=DT)
-        with warnings.catch_warnings(record=True) as w:
+        with warnings.catch_warnings(record=True):
             warnings.simplefilter("always")
             ou.fit(rw, method="ols")
             # May or may not warn depending on sample — just ensure no crash

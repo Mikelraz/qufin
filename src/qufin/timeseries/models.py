@@ -37,6 +37,7 @@ def _to_numpy_1d(x: _SeriesLike) -> np.ndarray:
 # HedgeRatioFilter
 # ---------------------------------------------------------------------------
 
+
 class HedgeRatioFilter:
     """
     Time-varying hedge ratio tracker.
@@ -79,13 +80,13 @@ class HedgeRatioFilter:
         if obs_var <= 0:
             raise ValueError("obs_var must be positive.")
 
-        self.delta   = delta
+        self.delta = delta
         self.obs_var = obs_var
 
-        F  = np.eye(2)
-        H  = np.array([[1.0, 1.0]])  # placeholder; updated per observation
-        Q  = delta * np.eye(2)
-        R  = np.array([[obs_var]])
+        F = np.eye(2)
+        H = np.array([[1.0, 1.0]])  # placeholder; updated per observation
+        Q = delta * np.eye(2)
+        R = np.array([[obs_var]])
 
         _x0 = np.array([1.0, 0.0]) if x0 is None else np.asarray(x0, dtype=float).ravel()
         _P0 = (1.0 / delta) * np.eye(2) if P0 is None else np.asarray(P0, dtype=float)
@@ -195,27 +196,27 @@ class HedgeRatioFilter:
         T = len(y_arr)
         self.reset(x0, P0)
 
-        betas      = np.empty(T)
-        alphas     = np.empty(T)
-        spreads    = np.empty(T)
-        beta_stds  = np.empty(T)
+        betas = np.empty(T)
+        alphas = np.empty(T)
+        spreads = np.empty(T)
+        beta_stds = np.empty(T)
         alpha_stds = np.empty(T)
 
         for t in range(T):
-            b, a, s    = self.step(float(y_arr[t]), float(x_arr[t]))
-            betas[t]   = b
-            alphas[t]  = a
+            b, a, s = self.step(float(y_arr[t]), float(x_arr[t]))
+            betas[t] = b
+            alphas[t] = a
             spreads[t] = s
-            beta_stds[t]  = np.sqrt(max(self._kf.P[0, 0], 0.0))
+            beta_stds[t] = np.sqrt(max(self._kf.P[0, 0], 0.0))
             alpha_stds[t] = np.sqrt(max(self._kf.P[1, 1], 0.0))
 
         return pl.DataFrame(
             {
-                "beta":       betas,
-                "alpha":      alphas,
-                "spread":     spreads,
-                "beta_std":   beta_stds,
-                "alpha_std":  alpha_stds,
+                "beta": betas,
+                "alpha": alphas,
+                "spread": spreads,
+                "beta_std": beta_stds,
+                "alpha_std": alpha_stds,
             }
         )
 
@@ -223,6 +224,7 @@ class HedgeRatioFilter:
 # ---------------------------------------------------------------------------
 # TrendFilter
 # ---------------------------------------------------------------------------
+
 
 class TrendFilter:
     """
@@ -263,8 +265,8 @@ class TrendFilter:
             raise ValueError("obs_var must be positive.")
 
         self.process_var = process_var
-        self.obs_var     = obs_var
-        self.dt          = dt
+        self.obs_var = obs_var
+        self.dt = dt
 
         F = np.array([[1.0, dt], [0.0, 1.0]])
         H = np.array([[1.0, 0.0]])
@@ -273,11 +275,11 @@ class TrendFilter:
         # Q = σ² · [[dt³/3, dt²/2], [dt²/2, dt]]
         Q = process_var * np.array(
             [
-                [dt ** 3 / 3.0, dt ** 2 / 2.0],
-                [dt ** 2 / 2.0, dt],
+                [dt**3 / 3.0, dt**2 / 2.0],
+                [dt**2 / 2.0, dt],
             ]
         )
-        R  = np.array([[obs_var]])
+        R = np.array([[obs_var]])
         x0 = np.array([0.0, 0.0])
         P0 = np.diag([obs_var, process_var])
 
@@ -317,26 +319,24 @@ class TrendFilter:
 
         # Warm-start: initialise level from first non-NaN observation
         first_valid = arr[~np.isnan(arr)]
-        init_level  = float(first_valid[0]) if len(first_valid) else 0.0
+        init_level = float(first_valid[0]) if len(first_valid) else 0.0
         x0 = np.array([init_level, 0.0])
         P0 = np.diag([self.obs_var, self.process_var])
 
-        result: FilterResult | SmootherResult = self._kf.filter(
-            arr.reshape(-1, 1), x0=x0, P0=P0
-        )
+        result: FilterResult | SmootherResult = self._kf.filter(arr.reshape(-1, 1), x0=x0, P0=P0)
         if smooth:
             result = self._kf.smooth(result)  # type: ignore[arg-type]
 
-        levels   = result.states[:, 0]
+        levels = result.states[:, 0]
         velocity = result.states[:, 1]
-        lev_std  = np.sqrt(np.maximum(result.covariances[:, 0, 0], 0.0))
-        vel_std  = np.sqrt(np.maximum(result.covariances[:, 1, 1], 0.0))
+        lev_std = np.sqrt(np.maximum(result.covariances[:, 0, 0], 0.0))
+        vel_std = np.sqrt(np.maximum(result.covariances[:, 1, 1], 0.0))
 
         return pl.DataFrame(
             {
-                "level":        levels,
-                "velocity":     velocity,
-                "level_std":    lev_std,
+                "level": levels,
+                "velocity": velocity,
+                "level_std": lev_std,
                 "velocity_std": vel_std,
             }
         )
@@ -348,7 +348,7 @@ class TrendFilter:
         """Log-likelihood of the price series under the current model parameters."""
         arr = _to_numpy_1d(prices)
         first_valid = arr[~np.isnan(arr)]
-        init_level  = float(first_valid[0]) if len(first_valid) else 0.0
+        init_level = float(first_valid[0]) if len(first_valid) else 0.0
         x0 = np.array([init_level, 0.0])
         P0 = np.diag([self.obs_var, self.process_var])
         return self._kf.log_likelihood(arr.reshape(-1, 1), x0=x0, P0=P0)
