@@ -61,7 +61,18 @@ from ._types import (
     WyckoffPhase,
 )
 from .bars import atr, normalize_volume, resample, rolling_slope, true_range, validate_ohlcv
-from .effort_result import EffortResult, effort_vs_result
+from .effort_result import (
+    DivergenceEvent,
+    DivergenceKind,
+    EffortResult,
+    HarmonyEvent,
+    HarmonyKind,
+    PriceMovementHarmony,
+    ShiftDivergence,
+    effort_vs_result,
+    price_movement_harmony,
+    subsequent_shift_divergence,
+)
 from .events import (
     detect_automatic_rally,
     detect_climax,
@@ -120,6 +131,14 @@ __all__ = [
     # Effort vs result
     "EffortResult",
     "effort_vs_result",
+    "ShiftDivergence",
+    "DivergenceEvent",
+    "DivergenceKind",
+    "subsequent_shift_divergence",
+    "PriceMovementHarmony",
+    "HarmonyEvent",
+    "HarmonyKind",
+    "price_movement_harmony",
     # Events
     "detect_climax",
     "detect_automatic_rally",
