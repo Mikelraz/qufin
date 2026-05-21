@@ -10,6 +10,24 @@ from .garch_vol_target import (
     GARCHVolTargetResult,
     GARCHVolTargetStrategy,
 )
+from .hull_backtest import HullBacktestResult, backtest_hull
+from .hull_strategy import (
+    generate_signals,
+    momentum_filter,
+    multi_timeframe_filter,
+    vwap_filter,
+)
+from .hull_suite import (
+    HullBand,
+    HullRibbon,
+    ehma,
+    hma,
+    hull_ribbon,
+    hull_slope,
+    price_vs_ribbon,
+    thma,
+    wma,
+)
 from .mean_reversion import (
     BacktestResult,
     MeanReversionStrategy,
@@ -40,4 +58,22 @@ __all__ = [
     "RegimeSwitchingStrategy",
     "RegimeSwitchingParams",
     "RegimeSwitchingResult",
+    # Hull Suite — indicator
+    "wma",
+    "hma",
+    "thma",
+    "ehma",
+    "hull_ribbon",
+    "hull_slope",
+    "price_vs_ribbon",
+    "HullBand",
+    "HullRibbon",
+    # Hull Suite — strategy + filters
+    "generate_signals",
+    "multi_timeframe_filter",
+    "vwap_filter",
+    "momentum_filter",
+    # Hull Suite — backtest
+    "backtest_hull",
+    "HullBacktestResult",
 ]
