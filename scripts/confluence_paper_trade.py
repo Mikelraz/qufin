@@ -106,7 +106,7 @@ def _alpaca_chain_provider(symbol_to_fetch: str):
     Falls back to None if the optional Alpaca options loader is unavailable.
     """
     try:
-        from qufin.trading.data import load_alpaca_option_chain
+        from qufin.data.vendors import load_alpaca_option_chain
     except (ImportError, AttributeError):
         return None
 
@@ -122,7 +122,7 @@ def _alpaca_chain_provider(symbol_to_fetch: str):
 
 
 def _load_bars(symbols: list[str], lookback_days: int) -> dict[str, pl.DataFrame]:
-    from qufin.trading.data import load_alpaca_ohlc
+    from qufin.data.vendors import load_alpaca_ohlc
 
     log.info("loading %d-day bar history for %d symbols from Alpaca", lookback_days, len(symbols))
     start = datetime.now(UTC) - timedelta(days=lookback_days + 30)

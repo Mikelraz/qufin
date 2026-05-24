@@ -11,7 +11,6 @@ Submodules
     _types        Order, Fill, Position, Signal, AccountSnapshot, BacktestReport, enums
     engine        Event-driven backtest engine (clock, portfolio, execution)
     strategy      Strategy protocol and adapters for existing qufin strategies
-    data          OHLC and option-chain loaders (yfinance, alpaca) + parquet cache
     training      Hyperparameter search, walk-forward CV, ML pipelines
     evaluation    Tearsheet, attribution, multi-strategy comparison
     brokers       Broker protocol + PaperBroker, AlpacaBroker, IBKRBroker

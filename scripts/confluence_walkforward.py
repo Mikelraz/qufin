@@ -28,9 +28,9 @@ from pathlib import Path
 
 import polars as pl
 
+from qufin.data.vendors import load_ohlc_many
 from qufin.strategies.confluence import ConfluenceParams, ConfluenceStrategy
 from qufin.trading import BacktestEngine, PercentSlippage
-from qufin.trading.data import load_ohlc_many
 from qufin.trading.engine import Clock, EngineConfig, NextBarOpenExecution
 from qufin.trading.evaluation import tearsheet
 

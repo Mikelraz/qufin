@@ -2,22 +2,21 @@
 Alpaca historical OHLC + option-chain loader.
 
 Wraps ``alpaca-py``'s historical data clients and emits frames that match
-``qufin.wyckoff._types.BAR_SCHEMA`` and ``qufin.options._types.CHAIN_SCHEMA``
-so the rest of the package can consume them without re-validating.
-
-``alpaca`` is imported lazily; the rest of the data subpackage works
-without it installed.
+``BAR_SCHEMA`` and ``CHAIN_SCHEMA``. ``alpaca`` is imported lazily; the rest
+of the data subpackage works without it installed.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Literal
 
 import polars as pl
 
 from ...options._types import CHAIN_SCHEMA, OptionChain
-from ...wyckoff._types import OHLCV
+from .._types import OHLCV
 
 TimeFrameUnit = Literal["Min", "Hour", "Day"]
 
@@ -89,7 +88,6 @@ def load_alpaca_option_chain(
 
     rows: list[dict[str, object]] = []
     for sym, snap in chain.items():
-        # OCC symbols encode expiry, right, strike — parse from the symbol.
         root_len = len(underlying)
         body = sym[root_len:].lstrip("0").ljust(15)
         try:
@@ -111,6 +109,73 @@ def load_alpaca_option_chain(
                 "iv": 0.0,
             }
         )
-        del yymmdd  # placeholder — only the strike+right are needed at one expiry
+        del yymmdd
     df = pl.DataFrame(rows, schema=CHAIN_SCHEMA)
     return OptionChain.from_records(df, spot=spot, as_of=as_of, underlying=underlying)
+
+
+@dataclass(slots=True)
+class AlpacaOHLC:
+    """``OHLCSource``-conforming wrapper around the Alpaca bars endpoint."""
+
+    feed: str = "iex"
+    api_key: str | None = None
+    secret_key: str | None = None
+
+    def fetch(
+        self,
+        symbol: str,
+        *,
+        start: datetime,
+        end: datetime,
+        interval: str,
+    ) -> OHLCV:
+        amount, unit = _parse_interval(interval)
+        return load_alpaca_ohlc(
+            symbol,
+            start=start,
+            end=end,
+            amount=amount,
+            unit=unit,
+            feed=self.feed,
+            api_key=self.api_key,
+            secret_key=self.secret_key,
+        )
+
+    def fetch_many(
+        self,
+        symbols: Sequence[str],
+        *,
+        start: datetime,
+        end: datetime,
+        interval: str,
+    ) -> dict[str, OHLCV]:
+        return {
+            sym: self.fetch(sym, start=start, end=end, interval=interval) for sym in symbols
+        }
+
+
+_UNIT_BY_SUFFIX: dict[str, TimeFrameUnit] = {
+    "m": "Min",
+    "min": "Min",
+    "h": "Hour",
+    "hour": "Hour",
+    "d": "Day",
+    "day": "Day",
+}
+
+
+def _parse_interval(interval: str) -> tuple[int, TimeFrameUnit]:
+    """Parse e.g. ``'1d'``, ``'5m'``, ``'1h'`` into (amount, alpaca unit)."""
+    s = interval.strip().lower()
+    i = 0
+    while i < len(s) and s[i].isdigit():
+        i += 1
+    if i == 0:
+        amount = 1
+    else:
+        amount = int(s[:i])
+    suffix = s[i:] or "d"
+    if suffix not in _UNIT_BY_SUFFIX:
+        raise ValueError(f"unsupported Alpaca interval: {interval!r}")
+    return amount, _UNIT_BY_SUFFIX[suffix]

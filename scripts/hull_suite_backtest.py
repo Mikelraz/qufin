@@ -156,9 +156,9 @@ def _buy_and_hold_stats(close: np.ndarray, annualizer: float) -> dict[str, float
 
 
 def _run_symbol(symbol: str, args: argparse.Namespace) -> int:
+    from qufin.data.vendors.alpaca import load_alpaca_ohlc
     from qufin.strategies.hull_backtest import backtest_hull
     from qufin.strategies.hull_strategy import generate_signals
-    from qufin.trading.data.alpaca_data import load_alpaca_ohlc
 
     start = datetime.fromisoformat(args.start).replace(tzinfo=UTC)
     end = datetime.fromisoformat(args.end).replace(tzinfo=UTC)
