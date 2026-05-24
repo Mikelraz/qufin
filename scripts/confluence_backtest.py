@@ -21,9 +21,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from qufin.data.vendors import load_ohlc_many
 from qufin.strategies.confluence import ConfluenceParams, ConfluenceStrategy
 from qufin.trading import BacktestEngine, PercentSlippage
-from qufin.trading.data import load_ohlc_many
 from qufin.trading.engine import Clock, EngineConfig, NextBarOpenExecution
 from qufin.trading.evaluation import tearsheet
 from qufin.trading.strategy.base import StrategyContext

@@ -2,18 +2,20 @@
 yfinance OHLC bar loader.
 
 yfinance returns a pandas DataFrame; we convert to polars immediately and
-coerce to ``qufin.wyckoff._types.BAR_SCHEMA`` so the result is a drop-in
-input for both the wyckoff toolkit and the trading engine.
+coerce to ``BAR_SCHEMA`` so the result is a drop-in input for the rest of
+the toolkit. Timestamps are coerced to tz-aware UTC.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 
 import polars as pl
 
-from ...wyckoff._types import BAR_SCHEMA, OHLCV
+from .._types import BAR_SCHEMA, OHLCV
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -36,8 +38,7 @@ def load_ohlc(
     """Download OHLC bars for one ticker from yfinance.
 
     Either ``period`` (e.g. ``'5y'``) or an explicit ``start``/``end`` pair
-    must be supplied. Returns a polars-backed ``OHLCV`` whose schema matches
-    ``BAR_SCHEMA``. Timestamps are coerced to tz-aware UTC.
+    must be supplied.
     """
     import yfinance as yf
 
@@ -53,8 +54,6 @@ def load_ohlc(
     )
     if pdf.empty:
         raise ValueError(f"yfinance returned no data for {symbol!r}")
-    # yfinance may return MultiIndex columns when a single symbol is requested
-    # alongside others; flatten if so.
     if hasattr(pdf.columns, "nlevels") and pdf.columns.nlevels > 1:
         pdf.columns = [c[0] for c in pdf.columns]
     pdf = pdf.reset_index().rename(
@@ -69,12 +68,10 @@ def load_ohlc(
         }
     )[["timestamp", "open", "high", "low", "close", "volume"]]
     df = pl.from_pandas(pdf)
-    # Coerce to BAR_SCHEMA.
     df = df.with_columns(
         pl.col("timestamp").cast(pl.Datetime("ns", time_zone="UTC")),
         *(pl.col(c).cast(pl.Float64()) for c in ("open", "high", "low", "close", "volume")),
     )
-    # Drop nulls produced by partial bars.
     df = df.drop_nulls(subset=["open", "high", "low", "close"])
     return OHLCV.from_records(df, symbol=symbol)
 
@@ -102,5 +99,45 @@ def load_ohlc_many(
     }
 
 
-# Schema re-export for callers building frames directly.
-__all__ = ["BAR_SCHEMA", "Interval", "load_ohlc", "load_ohlc_many"]
+@dataclass(slots=True)
+class YFinanceOHLC:
+    """``OHLCSource``-conforming wrapper around the yfinance loader."""
+
+    auto_adjust: bool = True
+
+    def fetch(
+        self,
+        symbol: str,
+        *,
+        start: datetime,
+        end: datetime,
+        interval: str,
+    ) -> OHLCV:
+        return load_ohlc(
+            symbol,
+            start=start,
+            end=end,
+            interval=interval,  # type: ignore[arg-type]
+            auto_adjust=self.auto_adjust,
+        )
+
+    def fetch_many(
+        self,
+        symbols: Sequence[str],
+        *,
+        start: datetime,
+        end: datetime,
+        interval: str,
+    ) -> dict[str, OHLCV]:
+        return {
+            sym: self.fetch(sym, start=start, end=end, interval=interval) for sym in symbols
+        }
+
+
+__all__ = [
+    "BAR_SCHEMA",
+    "Interval",
+    "YFinanceOHLC",
+    "load_ohlc",
+    "load_ohlc_many",
+]
