@@ -58,18 +58,9 @@ import polars as pl
 from scipy import optimize
 
 from ..timeseries.kalman import KalmanFilter
+from ..utils import to_numpy_1d as _to_numpy_1d
 
 _SeriesLike = np.ndarray | pl.Series
-
-
-def _to_numpy_1d(x: _SeriesLike) -> np.ndarray:
-    """Coerce a 1-D polars Series or numpy array to a float64 numpy array."""
-    if isinstance(x, pl.Series):
-        return x.to_numpy().astype(np.float64, copy=False)
-    arr = np.asarray(x, dtype=np.float64)
-    if arr.ndim != 1:
-        raise ValueError(f"expected 1-D array, got shape {arr.shape}")
-    return arr
 
 
 _ANNUAL = np.sqrt(252)  # annualisation for daily Sharpe

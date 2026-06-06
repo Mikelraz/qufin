@@ -16,6 +16,8 @@ public API live in the model modules that consume them.
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 from numba import njit, prange
 
@@ -167,3 +169,169 @@ def yule_walker_solve(acovs: np.ndarray) -> tuple[np.ndarray, float]:
     """
     ar, _, sigma2 = durbin_levinson(acovs)
     return ar, float(sigma2[-1])
+
+
+# ---------------------------------------------------------------------------
+# Long-memory / fractal kernels (consumed by fractal.py)
+# ---------------------------------------------------------------------------
+
+
+@njit(cache=True)
+def rescaled_range(x: np.ndarray, scales: np.ndarray) -> np.ndarray:
+    """
+    Mean rescaled range R/S over non-overlapping windows for each scale.
+
+    For window size ``n`` the series is split into ``⌊N/n⌋`` blocks; each block
+    contributes ``range(cumulative deviations) / std`` and the values are
+    averaged.  ``NaN`` for a scale with no usable block.
+    """
+    big_n = x.shape[0]
+    out = np.empty(scales.shape[0], dtype=np.float64)
+    for si in range(scales.shape[0]):
+        n = scales[si]
+        n_blocks = big_n // n
+        if n_blocks == 0:
+            out[si] = np.nan
+            continue
+        total = 0.0
+        count = 0
+        for b in range(n_blocks):
+            start = b * n
+            mean = 0.0
+            for i in range(n):
+                mean += x[start + i]
+            mean /= n
+            cum = 0.0
+            z_min = 0.0
+            z_max = 0.0
+            ss = 0.0
+            for i in range(n):
+                d = x[start + i] - mean
+                cum += d
+                if i == 0:
+                    z_min = cum
+                    z_max = cum
+                else:
+                    if cum < z_min:
+                        z_min = cum
+                    if cum > z_max:
+                        z_max = cum
+                ss += d * d
+            std = math.sqrt(ss / n)
+            if std > 0.0:
+                total += (z_max - z_min) / std
+                count += 1
+        out[si] = total / count if count > 0 else np.nan
+    return out
+
+
+@njit(cache=True)
+def dfa_fluctuations(y: np.ndarray, scales: np.ndarray) -> np.ndarray:
+    """
+    Detrended-fluctuation function F(n) (order-1 detrend) for each scale.
+
+    ``y`` is the integrated profile (cumulative sum of the mean-removed series).
+    Each non-overlapping window of length ``n`` is linearly detrended and the
+    root-mean-square residual is accumulated across windows.
+    """
+    big_n = y.shape[0]
+    out = np.empty(scales.shape[0], dtype=np.float64)
+    for si in range(scales.shape[0]):
+        n = scales[si]
+        n_blocks = big_n // n
+        if n_blocks == 0:
+            out[si] = np.nan
+            continue
+        ss_total = 0.0
+        for b in range(n_blocks):
+            start = b * n
+            s_x = 0.0
+            s_y = 0.0
+            s_xx = 0.0
+            s_xy = 0.0
+            for i in range(n):
+                t = float(i)
+                val = y[start + i]
+                s_x += t
+                s_y += val
+                s_xx += t * t
+                s_xy += t * val
+            denom = n * s_xx - s_x * s_x
+            if denom == 0.0:
+                slope = 0.0
+                intercept = s_y / n
+            else:
+                slope = (n * s_xy - s_x * s_y) / denom
+                intercept = (s_y - slope * s_x) / n
+            for i in range(n):
+                resid = y[start + i] - (intercept + slope * i)
+                ss_total += resid * resid
+        out[si] = math.sqrt(ss_total / (n_blocks * n))
+    return out
+
+
+@njit(cache=True)
+def detrended_seg_vars(y: np.ndarray, scale: int) -> np.ndarray:
+    """
+    Order-1 detrended variances F²(v, s) for every non-overlapping segment.
+
+    Segments are taken from both ends of the integrated profile ``y`` (the
+    standard MFDFA convention), giving ``2·⌊N/scale⌋`` segment variances.
+    """
+    big_n = y.shape[0]
+    n_seg = big_n // scale
+    out = np.empty(2 * n_seg, dtype=np.float64)
+    if n_seg == 0:
+        return out
+
+    for direction in range(2):
+        for v in range(n_seg):
+            start = v * scale if direction == 0 else big_n - (v + 1) * scale
+            s_x = 0.0
+            s_y = 0.0
+            s_xx = 0.0
+            s_xy = 0.0
+            for i in range(scale):
+                t = float(i)
+                val = y[start + i]
+                s_x += t
+                s_y += val
+                s_xx += t * t
+                s_xy += t * val
+            denom = scale * s_xx - s_x * s_x
+            if denom == 0.0:
+                slope = 0.0
+                intercept = s_y / scale
+            else:
+                slope = (scale * s_xy - s_x * s_y) / denom
+                intercept = (s_y - slope * s_x) / scale
+            ss = 0.0
+            for i in range(scale):
+                resid = y[start + i] - (intercept + slope * i)
+                ss += resid * resid
+            out[direction * n_seg + v] = ss / scale
+    return out
+
+
+@njit(cache=True)
+def higuchi_lengths(x: np.ndarray, k_max: int) -> np.ndarray:
+    """
+    Higuchi curve length L(k) for k = 1 … k_max (fractal dimension estimator).
+    """
+    big_n = x.shape[0]
+    out = np.empty(k_max, dtype=np.float64)
+    for k in range(1, k_max + 1):
+        lk_total = 0.0
+        valid = 0
+        for m in range(k):
+            num = (big_n - 1 - m) // k
+            if num < 1:
+                continue
+            length = 0.0
+            for j in range(1, num + 1):
+                length += abs(x[m + j * k] - x[m + (j - 1) * k])
+            norm = (big_n - 1.0) / (num * k)
+            lk_total += (length * norm) / k
+            valid += 1
+        out[k - 1] = lk_total / valid if valid > 0 else np.nan
+    return out

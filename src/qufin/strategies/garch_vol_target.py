@@ -54,19 +54,11 @@ import numpy as np
 import polars as pl
 
 from ..timeseries.garch import EGARCH, GARCH
+from ..utils import to_numpy_1d as _to_numpy_1d
 
 _SeriesLike = np.ndarray | pl.Series
 _ANNUAL = math.sqrt(252.0)
 _E_ABS_Z = math.sqrt(2.0 / math.pi)
-
-
-def _to_numpy_1d(x: _SeriesLike) -> np.ndarray:
-    if isinstance(x, pl.Series):
-        return x.to_numpy().astype(np.float64, copy=False)
-    arr = np.asarray(x, dtype=np.float64)
-    if arr.ndim != 1:
-        raise ValueError(f"expected 1-D array, got shape {arr.shape}")
-    return arr
 
 
 # ---------------------------------------------------------------------------
@@ -226,9 +218,7 @@ class GARCHVolTargetStrategy:
     """
 
     def __init__(self, params: GARCHVolTargetParams | None = None) -> None:
-        self.params: GARCHVolTargetParams = (
-            params if params is not None else GARCHVolTargetParams()
-        )
+        self.params: GARCHVolTargetParams = params if params is not None else GARCHVolTargetParams()
 
     # ------------------------------------------------------------------
     # Helpers

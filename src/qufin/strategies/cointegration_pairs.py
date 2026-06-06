@@ -45,18 +45,10 @@ import numpy as np
 import polars as pl
 
 from ..timeseries.cointegration import engle_granger
+from ..utils import to_numpy_1d as _to_numpy_1d
 
 _SeriesLike = np.ndarray | pl.Series
 _ANNUAL = math.sqrt(252.0)
-
-
-def _to_numpy_1d(x: _SeriesLike) -> np.ndarray:
-    if isinstance(x, pl.Series):
-        return x.to_numpy().astype(np.float64, copy=False)
-    arr = np.asarray(x, dtype=np.float64)
-    if arr.ndim != 1:
-        raise ValueError(f"expected 1-D array, got shape {arr.shape}")
-    return arr
 
 
 # ---------------------------------------------------------------------------
@@ -234,9 +226,7 @@ class CointegrationPairsStrategy:
             raise ValueError(f"y and x must have same shape; got {y_raw.shape} vs {x_raw.shape}.")
         T = y_raw.shape[0]
         if T < p.fit_window + p.zscore_window + 5:
-            raise ValueError(
-                f"Need ≥ {p.fit_window + p.zscore_window + 5} bars; got {T}."
-            )
+            raise ValueError(f"Need ≥ {p.fit_window + p.zscore_window + 5} bars; got {T}.")
         if p.use_log_prices:
             if np.any(y_raw <= 0.0) or np.any(x_raw <= 0.0):
                 raise ValueError("All prices must be > 0 when use_log_prices is True.")

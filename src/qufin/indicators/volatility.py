@@ -8,9 +8,17 @@ Implementations
 * ``bollinger_bands``    — SMA midline +/- n_std rolling standard deviations
 * ``keltner_channels``   — EMA midline +/- multiplier · ATR
 * ``donchian_channels``  — Rolling high / low / midline
+
+Range-based realized-volatility estimators (annualised)
+* ``parkinson``          — Parkinson (1980) high-low
+* ``garman_klass``       — Garman-Klass (1980) OHLC
+* ``rogers_satchell``    — Rogers-Satchell (1991), drift-robust
+* ``yang_zhang``         — Yang-Zhang (2000), drift- + gap-robust
 """
 
 from __future__ import annotations
+
+import math
 
 import numpy as np
 
@@ -133,3 +141,157 @@ def donchian_channels(high: np.ndarray, low: np.ndarray, window: int = 20) -> Do
     lower = rolling_min_kernel(l, window)
     middle = 0.5 * (upper + lower)
     return DonchianChannels(upper=upper, lower=lower, middle=middle)
+
+
+# ---------------------------------------------------------------------------
+# Range-based realized-volatility estimators
+# ---------------------------------------------------------------------------
+#
+# These exploit the full OHLC bar (not just close-to-close) to estimate
+# volatility far more efficiently than the classical close-only estimator.
+# Each returns a trailing ``window``-bar volatility, annualised by
+# √``trading_periods``.
+
+_LN2 = math.log(2.0)
+
+
+def _rolling_mean(x: np.ndarray, window: int) -> np.ndarray:
+    """Rolling mean over ``window`` samples; first ``window − 1`` entries NaN."""
+    n = x.shape[0]
+    out = np.full(n, np.nan, dtype=np.float64)
+    if n < window:
+        return out
+    cumsum = np.cumsum(x)
+    s = np.empty(n - window + 1, dtype=np.float64)
+    s[0] = cumsum[window - 1]
+    s[1:] = cumsum[window:] - cumsum[:-window]
+    out[window - 1 :] = s / window
+    return out
+
+
+def _rolling_var_sample(x: np.ndarray, window: int) -> np.ndarray:
+    """Rolling sample variance (ddof = 1) over ``window`` samples."""
+    mean = _rolling_mean(x, window)
+    mean_sq = _rolling_mean(x * x, window)
+    var_pop = np.maximum(mean_sq - mean * mean, 0.0)
+    return var_pop * (window / (window - 1.0))
+
+
+def parkinson(
+    high: np.ndarray,
+    low: np.ndarray,
+    window: int = 20,
+    trading_periods: float = 252.0,
+) -> np.ndarray:
+    """
+    Parkinson (1980) high-low range volatility (annualised).
+
+    ``σ² = 1/(4 ln2) · mean[ ln(H/L)² ]`` over the trailing ``window``.  Uses
+    the intraday range only; ~5× more efficient than the close-to-close
+    estimator but assumes no drift and continuous trading.
+    """
+    if window < 2:
+        raise ValueError(f"window must be >= 2, got {window}")
+    h = to_numpy_1d(high)
+    l = to_numpy_1d(low)  # noqa: E741
+    check_lengths(h, l)
+    hl2 = np.log(h / l) ** 2
+    var = _rolling_mean(hl2, window) / (4.0 * _LN2)
+    return np.sqrt(var * trading_periods)
+
+
+def garman_klass(
+    open_: np.ndarray,
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    window: int = 20,
+    trading_periods: float = 252.0,
+) -> np.ndarray:
+    """
+    Garman-Klass (1980) OHLC volatility (annualised).
+
+    ``σ² = mean[ ½ ln(H/L)² − (2 ln2 − 1) ln(C/O)² ]`` over the trailing
+    ``window``.  More efficient than Parkinson by adding the open-close term.
+    """
+    if window < 2:
+        raise ValueError(f"window must be >= 2, got {window}")
+    o = to_numpy_1d(open_)
+    h = to_numpy_1d(high)
+    l = to_numpy_1d(low)  # noqa: E741
+    c = to_numpy_1d(close)
+    check_lengths(o, h, l, c)
+    term = 0.5 * np.log(h / l) ** 2 - (2.0 * _LN2 - 1.0) * np.log(c / o) ** 2
+    var = _rolling_mean(term, window)
+    return np.sqrt(np.maximum(var, 0.0) * trading_periods)
+
+
+def rogers_satchell(
+    open_: np.ndarray,
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    window: int = 20,
+    trading_periods: float = 252.0,
+) -> np.ndarray:
+    """
+    Rogers-Satchell (1991) OHLC volatility (annualised).
+
+    ``σ² = mean[ ln(H/C)·ln(H/O) + ln(L/C)·ln(L/O) ]``.  Unlike Parkinson /
+    Garman-Klass it is unbiased in the presence of drift.
+    """
+    if window < 2:
+        raise ValueError(f"window must be >= 2, got {window}")
+    o = to_numpy_1d(open_)
+    h = to_numpy_1d(high)
+    l = to_numpy_1d(low)  # noqa: E741
+    c = to_numpy_1d(close)
+    check_lengths(o, h, l, c)
+    term = np.log(h / c) * np.log(h / o) + np.log(l / c) * np.log(l / o)
+    var = _rolling_mean(term, window)
+    return np.sqrt(np.maximum(var, 0.0) * trading_periods)
+
+
+def yang_zhang(
+    open_: np.ndarray,
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    window: int = 20,
+    trading_periods: float = 252.0,
+) -> np.ndarray:
+    """
+    Yang-Zhang (2000) OHLC volatility (annualised).
+
+    The minimum-variance, drift-independent estimator that also accounts for
+    overnight gaps:
+
+        σ²_YZ = σ²_overnight + k·σ²_open-close + (1 − k)·σ²_Rogers-Satchell,
+        k = 0.34 / (1.34 + (n + 1)/(n − 1)).
+
+    Needs the previous close, so the first ``window`` bars are ``NaN``.
+    """
+    if window < 2:
+        raise ValueError(f"window must be >= 2, got {window}")
+    o = to_numpy_1d(open_)
+    h = to_numpy_1d(high)
+    l = to_numpy_1d(low)  # noqa: E741
+    c = to_numpy_1d(close)
+    n = check_lengths(o, h, l, c)
+    out = np.full(n, np.nan, dtype=np.float64)
+    if n < window + 1:
+        return out
+
+    overnight = np.log(o[1:] / c[:-1])
+    open_close = np.log(c[1:] / o[1:])
+    rs = np.log(h[1:] / c[1:]) * np.log(h[1:] / o[1:]) + np.log(l[1:] / c[1:]) * np.log(
+        l[1:] / o[1:]
+    )
+
+    var_o = _rolling_var_sample(overnight, window)
+    var_c = _rolling_var_sample(open_close, window)
+    var_rs = _rolling_mean(rs, window)
+    k = 0.34 / (1.34 + (window + 1.0) / (window - 1.0))
+    var_yz = var_o + k * var_c + (1.0 - k) * var_rs
+    out[1:] = np.sqrt(np.maximum(var_yz, 0.0) * trading_periods)
+    return out

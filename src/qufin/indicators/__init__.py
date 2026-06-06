@@ -66,8 +66,12 @@ from .volatility import (
     atr,
     bollinger_bands,
     donchian_channels,
+    garman_klass,
     keltner_channels,
+    parkinson,
+    rogers_satchell,
     true_range,
+    yang_zhang,
 )
 from .volume import (
     accumulation_distribution,
@@ -108,6 +112,10 @@ __all__ = [
     "williams_r",
     # Volatility
     "true_range",
+    "parkinson",
+    "garman_klass",
+    "rogers_satchell",
+    "yang_zhang",
     "atr",
     "bollinger_bands",
     "keltner_channels",

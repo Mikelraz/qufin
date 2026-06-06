@@ -34,6 +34,15 @@ Phase 5 — DCC, regime, forecast evaluation
     garch         DCC (multivariate Dynamic Conditional Correlation GARCH)
     regime        MarkovSwitchingAR (Hamilton filter + Baum-Welch EM)
     forecast_eval RollingBacktest, Diebold-Mariano, error metrics, CRPS
+
+Long-memory / fractal
+---------------------
+    fractal       Hurst exponent (R/S, DFA, aggregated variance), Higuchi
+                  fractal dimension, multifractal DFA (mfdfa)
+
+Realized volatility
+-------------------
+    realized      realized variance / volatility, bipower variation, HAR-RV
 """
 
 from __future__ import annotations
@@ -82,6 +91,16 @@ from .forecast_eval import (
     mase,
     rmse,
 )
+from .fractal import (
+    HurstResult,
+    MFDFAResult,
+    aggregated_variance,
+    dfa,
+    fractal_dimension,
+    hurst,
+    mfdfa,
+    rs_analysis,
+)
 from .garch import (
     DCC,
     EGARCH,
@@ -96,6 +115,13 @@ from .garch import (
 )
 from .kalman import FilterResult, KalmanFilter, SmootherResult
 from .models import HedgeRatioFilter, TrendFilter
+from .realized import (
+    HARRV,
+    HARRVResult,
+    bipower_variation,
+    realized_variance,
+    realized_volatility,
+)
 from .regime import MarkovSwitchingAR, MSARFitResult
 from .statespace import ARMAStateSpace, StateSpaceResult
 from .stationarity import (
@@ -201,6 +227,21 @@ __all__ = [
     "kpss",
     "phillips_perron",
     "variance_ratio",
+    # Long-memory / fractal
+    "HurstResult",
+    "hurst",
+    "rs_analysis",
+    "dfa",
+    "aggregated_variance",
+    "fractal_dimension",
+    "mfdfa",
+    "MFDFAResult",
+    # Realized volatility
+    "HARRV",
+    "HARRVResult",
+    "realized_variance",
+    "realized_volatility",
+    "bipower_variation",
     # Utilities
     "difference",
     "info_criteria",

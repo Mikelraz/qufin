@@ -39,6 +39,12 @@ from .regime_switching import (
     RegimeSwitchingResult,
     RegimeSwitchingStrategy,
 )
+from .time_series_momentum import (
+    TimeSeriesMomentumStrategy,
+    TSMOMParams,
+    TSMOMResult,
+    TSMOMTrainResult,
+)
 
 __all__ = [
     # Mean reversion
@@ -58,6 +64,11 @@ __all__ = [
     "RegimeSwitchingStrategy",
     "RegimeSwitchingParams",
     "RegimeSwitchingResult",
+    # Time-series momentum
+    "TimeSeriesMomentumStrategy",
+    "TSMOMParams",
+    "TSMOMResult",
+    "TSMOMTrainResult",
     # Hull Suite — indicator
     "wma",
     "hma",
