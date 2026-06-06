@@ -18,10 +18,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
-import numpy as np
-import polars as pl
-
 from ..data._types import BAR_SCHEMA, OHLCV, to_numpy_1d
+from ..volume_distribution._types import VolumeProfile
 
 __all__ = [
     "BAR_SCHEMA",
@@ -139,35 +137,6 @@ class WyckoffPhase:
     end_idx: int
     schematic: Schematic
     phase: PhaseLabel
-
-
-@dataclass(slots=True)
-class VolumeProfile:
-    """
-    Volume-by-price histogram over a window of bars.
-
-    Attributes
-    ----------
-    price_bins   Bin edges, shape (n_bins + 1,).
-    volume       Volume per bin, shape (n_bins,).
-    poc          Point of Control — bin centre with the most volume.
-    vah          Value Area High — upper edge of value area.
-    val          Value Area Low — lower edge of value area.
-    hvn_idx      Indices of High Volume Nodes (local maxima).
-    lvn_idx      Indices of Low Volume Nodes (local minima).
-    """
-
-    price_bins: np.ndarray
-    volume: np.ndarray
-    poc: float
-    vah: float
-    val: float
-    hvn_idx: np.ndarray
-    lvn_idx: np.ndarray
-
-    def to_dataframe(self) -> pl.DataFrame:
-        centres = 0.5 * (self.price_bins[:-1] + self.price_bins[1:])
-        return pl.DataFrame({"price": centres, "volume": self.volume})
 
 
 @dataclass(slots=True, frozen=True)
