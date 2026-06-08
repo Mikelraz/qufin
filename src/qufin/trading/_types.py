@@ -30,6 +30,7 @@ CASH_TOL: float = 1e-9  # tolerance used by the round-trip parity test
 # ---------------------------------------------------------------------------
 # Enums
 
+
 class Side(Enum):
     """Trade direction for a single fill or order."""
 
@@ -91,6 +92,7 @@ def new_order_id(prefix: str = "ord") -> OrderId:
 # ---------------------------------------------------------------------------
 # Bar event (engine-internal alias around the polars row)
 
+
 @dataclass(slots=True, frozen=True)
 class BarEvent:
     """A single bar emitted by the engine clock.
@@ -112,6 +114,7 @@ class BarEvent:
 
 # ---------------------------------------------------------------------------
 # Orders and fills
+
 
 @dataclass(slots=True, frozen=True)
 class Order:
@@ -173,7 +176,60 @@ class Fill:
 
 
 # ---------------------------------------------------------------------------
+# Live order state
+
+# Broker-native status strings we treat as working / terminal / rejected.
+# IBKR has no explicit "Rejected" status — rejections surface as ``Inactive``
+# (with an accompanying error) or via a non-None ``reject_reason``.
+_WORKING_STATUSES = frozenset({"PreSubmitted", "Submitted"})
+_DONE_STATUSES = frozenset({"Filled", "Cancelled", "ApiCancelled", "Inactive"})
+
+
+@dataclass(slots=True, frozen=True)
+class OrderStatus:
+    """Broker-agnostic snapshot of a live order's state.
+
+    ``status`` carries the broker-native string (e.g. IBKR's ``Submitted`` /
+    ``Filled`` / ``Inactive``). The boolean properties classify it so callers
+    don't hard-code those strings.
+    """
+
+    order_id: OrderId
+    status: str
+    filled: float = 0.0
+    remaining: float = 0.0
+    avg_fill_price: float | None = None
+    reject_reason: str | None = None
+
+    @property
+    def is_working(self) -> bool:
+        return self.status in _WORKING_STATUSES
+
+    @property
+    def is_filled(self) -> bool:
+        return self.status == "Filled"
+
+    @property
+    def is_done(self) -> bool:
+        return self.status in _DONE_STATUSES
+
+    @property
+    def is_rejected(self) -> bool:
+        return self.reject_reason is not None or self.status == "Inactive"
+
+
+class OrderRejectedError(RuntimeError):
+    """Raised when a broker rejects or cancels an order during submission."""
+
+    def __init__(self, status: OrderStatus) -> None:
+        self.status = status
+        reason = status.reject_reason or "no reason reported"
+        super().__init__(f"order {status.order_id} not accepted ({status.status}): {reason}")
+
+
+# ---------------------------------------------------------------------------
 # Positions and account
+
 
 @dataclass(slots=True)
 class Position:
@@ -236,6 +292,7 @@ class AccountSnapshot:
 # ---------------------------------------------------------------------------
 # Strategy intents (signals)
 
+
 @dataclass(slots=True, frozen=True)
 class Signal:
     """High-level strategy intent.
@@ -261,6 +318,7 @@ class Signal:
 
 # ---------------------------------------------------------------------------
 # Execution-model protocols
+
 
 class SlippageModel(Protocol):
     """Pluggable price adjustment applied to fills."""
@@ -325,6 +383,7 @@ class FixedCommission:
 # ---------------------------------------------------------------------------
 # Backtest report
 
+
 @dataclass(slots=True)
 class BacktestReport:
     """Output of one backtest run.
@@ -371,6 +430,8 @@ __all__ = [
     "OptionContract",
     "Order",
     "OrderId",
+    "OrderRejectedError",
+    "OrderStatus",
     "OrderType",
     "PercentSlippage",
     "Position",
