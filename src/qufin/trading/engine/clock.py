@@ -11,13 +11,28 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 import numpy as np
 import polars as pl
 
 from ...wyckoff._types import BAR_SCHEMA
 from .._types import BarEvent
+
+
+def _ns_to_datetime(ns_value: object) -> datetime:
+    """Convert a numpy ``datetime64[ns]`` (or its int representation) to UTC datetime."""
+    if isinstance(ns_value, datetime):
+        return ns_value if ns_value.tzinfo is not None else ns_value.replace(tzinfo=UTC)
+    # numpy datetime64[ns].item() returns an int (nanoseconds since epoch).
+    # us-precision is safer: it returns a naive datetime which we re-stamp UTC.
+    ts_us = np.datetime64(ns_value, "us") if not isinstance(ns_value, np.datetime64) \
+        else ns_value.astype("datetime64[us]")
+    naive = ts_us.item()
+    if isinstance(naive, datetime):
+        return naive.replace(tzinfo=UTC)
+    # Fallback for very old numpy: nanoseconds → datetime via epoch.
+    return datetime.fromtimestamp(int(ns_value) / 1e9, tz=UTC)
 
 
 @dataclass(slots=True)
@@ -73,7 +88,7 @@ class Clock:
                 if i < len(col["timestamp"]) and col["timestamp"][i] == ts:
                     step[sym] = BarEvent(
                         symbol=sym,
-                        timestamp=col["timestamp"][i].astype("datetime64[ns]").item(),
+                        timestamp=_ns_to_datetime(col["timestamp"][i]),
                         open=float(col["open"][i]),
                         high=float(col["high"][i]),
                         low=float(col["low"][i]),
@@ -82,4 +97,4 @@ class Clock:
                         index=i,
                     )
                     cursors[sym] = i + 1
-            yield ts.astype("datetime64[ns]").item(), step
+            yield _ns_to_datetime(ts), step
