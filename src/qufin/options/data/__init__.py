@@ -9,6 +9,7 @@ in by adding a new module here that emits the same schema.
 
 from __future__ import annotations
 
+from .ibkr import IBKRChainLoader, load_chain_ibkr
 from .yfinance import load_chain_yfinance
 
-__all__ = ["load_chain_yfinance"]
+__all__ = ["IBKRChainLoader", "load_chain_ibkr", "load_chain_yfinance"]

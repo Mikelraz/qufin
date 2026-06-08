@@ -7,10 +7,25 @@ in-process ``PaperBroker`` wraps the backtest engine; ``AlpacaBroker`` and
 
 from __future__ import annotations
 
+from .._types import OrderRejectedError, OrderStatus
 from .base import Broker
 from .paper import PaperBroker
+from .quotes import MarketDataType, Quote, QuoteSession, quote_option, quote_options, quote_stock
 
-__all__ = ["AlpacaBroker", "Broker", "IBKRBroker", "PaperBroker"]
+__all__ = [
+    "AlpacaBroker",
+    "Broker",
+    "IBKRBroker",
+    "MarketDataType",
+    "OrderRejectedError",
+    "OrderStatus",
+    "PaperBroker",
+    "Quote",
+    "QuoteSession",
+    "quote_option",
+    "quote_options",
+    "quote_stock",
+]
 
 
 def __getattr__(name: str) -> type:

@@ -139,6 +139,68 @@ class NextBarOpenExecution:
 
 
 @dataclass(slots=True)
+class OptionAwareExecution:
+    """Like ``NextBarOpenExecution`` for equities; uses BS pricing for options.
+
+    For an option order, the underlying's next bar still drives the fill
+    timing (we read the underlying spot from ``bar.open``), but the actual
+    fill price is the Black-Scholes theoretical computed by ``mark_provider``
+    at that spot and timestamp. This keeps option PnL realistic even when the
+    backtest universe only contains the underlying's OHLC bars.
+
+    Equity orders pass through to the same logic as ``NextBarOpenExecution``.
+    """
+
+    mark_provider: object  # ``MarkProvider`` (avoid import cycle at type-check)
+    slippage: SlippageModel = field(default_factory=NoSlippage)
+    commissions: CommissionModel = field(default_factory=FixedCommission)
+
+    def execute(
+        self,
+        *,
+        pending: list[Order],
+        next_bars: dict[str, BarEvent],
+        timestamp: datetime,
+    ) -> list[Fill]:
+        from ...options._types import OptionContract
+
+        fills: list[Fill] = []
+        for order in pending:
+            sym = _option_underlying(order.asset)
+            bar = next_bars.get(sym)
+            if bar is None:
+                continue
+            kind = _kind(order.asset)
+            if isinstance(order.asset, OptionContract):
+                # Mark provider returns the BS theoretical price at the
+                # underlying's open at this timestamp.
+                price, _ = self.mark_provider.mark(  # type: ignore[attr-defined]
+                    contract=order.asset, spot=bar.open, timestamp=timestamp
+                )
+            else:
+                inner = NextBarOpenExecution._fillable_price(order, bar)
+                if inner is None:
+                    continue
+                price = inner
+            fill_price = self.slippage.adjust(ref_price=price, qty=order.qty, asset_kind=kind)
+            commission = self.commissions.charge(qty=order.qty, price=fill_price, asset_kind=kind)
+            fills.append(
+                Fill(
+                    order_id=order.client_id,
+                    asset=order.asset,
+                    timestamp=timestamp,
+                    qty=order.qty,
+                    price=fill_price,
+                    commission=commission,
+                    slippage=(
+                        self.slippage.bps if isinstance(self.slippage, PercentSlippage) else 0.0
+                    ),
+                )
+            )
+        return fills
+
+
+@dataclass(slots=True)
 class SameBarCloseExecution:
     """Fill market orders at the current bar's close; for parity/intraday testing only."""
 
