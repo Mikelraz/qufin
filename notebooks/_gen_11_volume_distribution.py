@@ -417,6 +417,6 @@ notebook = {
     "nbformat_minor": 5,
 }
 
-OUT = Path(__file__).with_name("volume_distribution_tutorial.ipynb")
+OUT = Path(__file__).with_name("11_volume_distribution.ipynb")
 OUT.write_text(json.dumps(notebook, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 print(f"wrote {OUT}  ({len(CELLS)} cells)")
