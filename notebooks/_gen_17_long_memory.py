@@ -389,6 +389,6 @@ notebook = {
     "nbformat_minor": 5,
 }
 
-OUT = Path(__file__).with_name("long_memory_package_tutorial.ipynb")
+OUT = Path(__file__).with_name("17_long_memory.ipynb")
 OUT.write_text(json.dumps(notebook, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 print(f"wrote {OUT}  ({len(CELLS)} cells)")
