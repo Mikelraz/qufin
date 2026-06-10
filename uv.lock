@@ -651,6 +651,18 @@ wheels = [
 ]
 
 [[package]]
+name = "ecdsa"
+version = "0.19.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/25/ca/8de7744cb3bc966c85430ca2d0fcaeea872507c6a4cf6e007f7fe269ed9d/ecdsa-0.19.2.tar.gz", hash = "sha256:62635b0ac1ca2e027f82122b5b81cb706edc38cd91c63dda28e4f3455a2bf930", size = 202432, upload-time = "2026-03-26T09:58:17.675Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/51/79/119091c98e2bf49e24ed9f3ae69f816d715d2904aefa6a2baa039a2ba0b0/ecdsa-0.19.2-py2.py3-none-any.whl", hash = "sha256:840f5dc5e375c68f36c1a7a5b9caad28f95daa65185c9253c0c08dd952bb7399", size = 150818, upload-time = "2026-03-26T09:58:15.808Z" },
+]
+
+[[package]]
 name = "execnet"
 version = "2.1.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2597,6 +2609,7 @@ dev = [
 trading-live = [
     { name = "alpaca-py" },
     { name = "ib-async" },
+    { name = "trade-republic-api" },
 ]
 
 [package.metadata]
@@ -2626,6 +2639,7 @@ dev = [
 trading-live = [
     { name = "alpaca-py", specifier = ">=0.30" },
     { name = "ib-async", specifier = ">=1.0" },
+    { name = "trade-republic-api", editable = "../trade-republic-api" },
 ]
 
 [[package]]
@@ -3120,6 +3134,35 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/2c/23/f6c6112a04d28eed765e374435fb1a9198f73e1ec4b4024184f21faeb1ad/tornado-6.5.5-cp39-abi3-win_amd64.whl", hash = "sha256:6443a794ba961a9f619b1ae926a2e900ac20c34483eea67be4ed8f1e58d3ef7b", size = 448990, upload-time = "2026-03-10T21:30:58.857Z" },
     { url = "https://files.pythonhosted.org/packages/b7/c8/876602cbc96469911f0939f703453c1157b0c826ecb05bdd32e023397d4e/tornado-6.5.5-cp39-abi3-win_arm64.whl", hash = "sha256:2c9a876e094109333f888539ddb2de4361743e5d21eece20688e3e351e4990a6", size = 448016, upload-time = "2026-03-10T21:31:00.43Z" },
 ]
+
+[[package]]
+name = "trade-republic-api"
+version = "0.1.0"
+source = { editable = "../trade-republic-api" }
+dependencies = [
+    { name = "ecdsa" },
+    { name = "requests" },
+    { name = "websockets" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ecdsa", specifier = ">=0.18" },
+    { name = "requests", specifier = ">=2.31" },
+    { name = "websockets", specifier = ">=12.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pyright", specifier = ">=1.1" },
+    { name = "pytest", specifier = ">=8.2" },
+    { name = "pytest-asyncio", specifier = ">=0.23" },
+    { name = "pytest-cov", specifier = ">=5.0" },
+    { name = "pytest-xdist", specifier = ">=3.5" },
+    { name = "ruff", specifier = ">=0.4" },
+    { name = "types-requests", specifier = ">=2.31" },
+]
+examples = [{ name = "getpass4", specifier = ">=0.0.14" }]
 
 [[package]]
 name = "traitlets"
