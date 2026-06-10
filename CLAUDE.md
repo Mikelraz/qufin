@@ -17,7 +17,7 @@ High-performance Python toolkit for quantitative analysis and modelling of finan
 | `pytest` + `pytest-xdist` | Testing | `unittest` |
 | `pyright` | Type checking | `mypy` |
 
-All dependencies are declared in `pyproject.toml`. Dev dependencies are in the `[dependency-groups] dev` group; live-broker dependencies (`alpaca-py`, `ib-async`) are in the optional `trading-live` group and are **not** installed by default.
+All dependencies are declared in `pyproject.toml`. Dev dependencies are in the `[dependency-groups] dev` group; live-broker dependencies (`alpaca-py`, `ib-async`, and the sibling `trade-republic-api` via a `[tool.uv.sources]` path) are in the optional `trading-live` group and are **not** installed by default.
 
 ---
 
@@ -25,7 +25,7 @@ All dependencies are declared in `pyproject.toml`. Dev dependencies are in the `
 
 ```bash
 uv sync --all-groups                    # install all deps including dev
-uv sync --group trading-live            # add live-broker deps (alpaca-py, ib-async)
+uv sync --group trading-live            # add live-broker deps (alpaca-py, ib-async, trade-republic-api)
 uv add <package>                        # add a runtime dependency
 uv add --group dev <package>            # add a dev dependency
 
@@ -86,7 +86,7 @@ This is the most layered subpackage. The design separates *signal logic* (portab
 - `strategy/base.py` — the `Strategy` `Protocol` (`on_start`/`on_bar`/`on_fill`/`on_end`) and `StrategyContext` (read-only per-bar view of account, positions, history). Subclass `StrategyBase` for no-op defaults. `strategy/adapters.py` lifts `strategies/` signal generators onto this protocol.
 - `engine/` — event-driven backtest. `BacktestEngine` drives a `Strategy` over a `Clock` of bars, routes orders through an `ExecutionModel` (default: next-bar-open fills), and accumulates a `Portfolio` into a `BacktestReport`. `options_engine.py` handles option contracts.
   - **Look-ahead invariant (do not break this):** at step `t` the strategy sees `history[:t+1]`; orders emitted at `t` only fill at `t+1`. `tests/trading/engine/test_lookahead.py` guards it.
-- `brokers/` — the `Broker` `Protocol` (async `connect`/`account`/`place_order`/`stream_bars`/…) with `paper`, `alpaca`, and `ibkr` implementations. Strategy code is identical across brokers because every call returns the canonical `Order`/`Fill`/`Position`/`AccountSnapshot` from `trading/_types.py`. Live trading is asyncio; the backtest engine is synchronous.
+- `brokers/` — the `Broker` `Protocol` (async `connect`/`account`/`place_order`/`stream_bars`/…) with `paper`, `alpaca`, `ibkr`, and `trade_republic` implementations. Strategy code is identical across brokers because every call returns the canonical `Order`/`Fill`/`Position`/`AccountSnapshot` from `trading/_types.py`. Live trading is asyncio; the backtest engine is synchronous. `trade_republic.py` (`TradeRepublicBroker`) wraps the sibling `trade-republic-api` client; account/positions/limit+stop orders are solid, while `stream_bars`/`stream_fills` are best-effort polling (Trade Republic exposes ticks, not bars, and has no native fills push).
 - `training/` — parameter search (`search.py`, `objectives.py`), `walk_forward.py` splits, and an `ml/` pipeline (feature extraction → signal model).
 - `evaluation/` — `tearsheet`, `attribution`, `compare`.
 

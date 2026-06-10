@@ -22,6 +22,7 @@ __all__ = [
     "PaperBroker",
     "Quote",
     "QuoteSession",
+    "TradeRepublicBroker",
     "quote_option",
     "quote_options",
     "quote_stock",
@@ -36,4 +37,7 @@ def __getattr__(name: str) -> type:
     if name == "IBKRBroker":
         from .ibkr import IBKRBroker
         return IBKRBroker
+    if name == "TradeRepublicBroker":
+        from .trade_republic import TradeRepublicBroker
+        return TradeRepublicBroker
     raise AttributeError(name)

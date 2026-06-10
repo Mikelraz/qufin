@@ -32,7 +32,13 @@ dev = [
 trading-live = [
     "alpaca-py>=0.30",
     "ib-async>=1.0",
+    "trade-republic-api>=0.1",
 ]
+
+[tool.uv.sources]
+# trade-republic-api is the sibling Trade Republic client (not published to PyPI);
+# resolve it from the local checkout for the TradeRepublicBroker live adapter.
+trade-republic-api = { path = "../trade-republic-api", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/qufin"]
