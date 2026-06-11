@@ -17,7 +17,7 @@ High-performance Python toolkit for quantitative analysis and modelling of finan
 | `pytest` + `pytest-xdist` | Testing | `unittest` |
 | `pyright` | Type checking | `mypy` |
 
-All dependencies are declared in `pyproject.toml`. Dev dependencies are in the `[dependency-groups] dev` group; live-broker dependencies (`alpaca-py`, `ib-async`, and the sibling `trade-republic-api` via a `[tool.uv.sources]` path) are in the optional `trading-live` group and are **not** installed by default.
+All dependencies are declared in `pyproject.toml`. Dev dependencies are in the `[dependency-groups] dev` group; live-broker dependencies (`alpaca-py`, `ib-async`, and the sibling `trade-republic-api[webauth]` — the `webauth` extra pulls Playwright for Trade Republic's web-login WAF token — via a `[tool.uv.sources]` path) are in the optional `trading-live` group and are **not** installed by default.
 
 ---
 
@@ -25,7 +25,8 @@ All dependencies are declared in `pyproject.toml`. Dev dependencies are in the `
 
 ```bash
 uv sync --all-groups                    # install all deps including dev
-uv sync --group trading-live            # add live-broker deps (alpaca-py, ib-async, trade-republic-api)
+uv sync --group trading-live            # add live-broker deps (alpaca-py, ib-async, trade-republic-api[webauth])
+uv run playwright install chromium      # one-time: browser for the Trade Republic web-login
 uv add <package>                        # add a runtime dependency
 uv add --group dev <package>            # add a dev dependency
 
@@ -86,7 +87,7 @@ This is the most layered subpackage. The design separates *signal logic* (portab
 - `strategy/base.py` — the `Strategy` `Protocol` (`on_start`/`on_bar`/`on_fill`/`on_end`) and `StrategyContext` (read-only per-bar view of account, positions, history). Subclass `StrategyBase` for no-op defaults. `strategy/adapters.py` lifts `strategies/` signal generators onto this protocol.
 - `engine/` — event-driven backtest. `BacktestEngine` drives a `Strategy` over a `Clock` of bars, routes orders through an `ExecutionModel` (default: next-bar-open fills), and accumulates a `Portfolio` into a `BacktestReport`. `options_engine.py` handles option contracts.
   - **Look-ahead invariant (do not break this):** at step `t` the strategy sees `history[:t+1]`; orders emitted at `t` only fill at `t+1`. `tests/trading/engine/test_lookahead.py` guards it.
-- `brokers/` — the `Broker` `Protocol` (async `connect`/`account`/`place_order`/`stream_bars`/…) with `paper`, `alpaca`, `ibkr`, and `trade_republic` implementations. Strategy code is identical across brokers because every call returns the canonical `Order`/`Fill`/`Position`/`AccountSnapshot` from `trading/_types.py`. Live trading is asyncio; the backtest engine is synchronous. `trade_republic.py` (`TradeRepublicBroker`) wraps the sibling `trade-republic-api` client; account/positions/limit+stop orders are solid, while `stream_bars`/`stream_fills` are best-effort polling (Trade Republic exposes ticks, not bars, and has no native fills push).
+- `brokers/` — the `Broker` `Protocol` (async `connect`/`account`/`place_order`/`stream_bars`/…) with `paper`, `alpaca`, `ibkr`, and `trade_republic` implementations. Strategy code is identical across brokers because every call returns the canonical `Order`/`Fill`/`Position`/`AccountSnapshot` from `trading/_types.py`. Live trading is asyncio; the backtest engine is synchronous. `trade_republic.py` (`TradeRepublicBroker`) wraps the sibling `trade-republic-api` (`trapi`) client over its **web-login** flow (AWS WAF token via Playwright + phone 2FA → cached `session.json`; pass a `token_provider` callable to supply the 2FA code, or reuse a saved session). `account`/`positions` read `compactPortfolioByType` and mark each holding with a live `ticker` quote, so equity = cash + Σ(mark·qty). Limit/stop orders are solid; `stream_bars`/`stream_fills` are best-effort polling (Trade Republic exposes ticks, not bars, and has no native fills push).
 - `training/` — parameter search (`search.py`, `objectives.py`), `walk_forward.py` splits, and an `ml/` pipeline (feature extraction → signal model).
 - `evaluation/` — `tearsheet`, `attribution`, `compare`.
 
@@ -137,6 +138,7 @@ This is the most layered subpackage. The design separates *signal logic* (portab
 - `scripts/` holds runnable CLI tools and demos. `scripts/_common.py` is the shared glue (env loading, IBKR client-id offset arithmetic, formatting) — the actual connection/quote logic lives in `qufin.trading.brokers`, not the scripts.
 - The `ibkr_*.py` tools each connect on a distinct `IBKR_CLIENT_ID + offset` so read-only tools never collide with the order-placing broker connection.
 - **Live order workflow:** `scripts/ibkr_order.py` defaults to a dry-run stage; the live order is sent only when `--live` is passed. Treat anything that places real orders as outward-facing — confirm before running `--live`.
+- **Trade Republic:** `scripts/trade_republic_smoke.py` is a read-only live check (cash/positions/quote, never places orders) that prompts for the 2FA code via a Tkinter popup. Credentials are `TR_PHONE_NUMBER` / `TR_PIN` (and optional `TR_LOCALE`); the script also reads them from the sibling `trade-republic-api/.env`. The web-login session caches to `%LOCALAPPDATA%/trapi/session.json`, so 2FA is only needed until the session expires.
 - Credentials load from a gitignored project-root `.env` (template in `.env.example`: Alpaca keys, IBKR host/port/client-id). `tests/trading/conftest.py` auto-loads it so credential-gated live tests (e.g. `test_alpaca_paper_live.py`) pick up keys; those tests `skipif` the keys are absent, so they no-op in CI.
 
 ---

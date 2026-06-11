@@ -32,7 +32,8 @@ dev = [
 trading-live = [
     "alpaca-py>=0.30",
     "ib-async>=1.0",
-    "trade-republic-api>=0.1",
+    # [webauth] pulls Playwright for the Trade Republic web-login WAF token.
+    "trade-republic-api[webauth]>=0.1",
 ]
 
 [tool.uv.sources]

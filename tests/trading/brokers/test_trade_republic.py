@@ -33,7 +33,12 @@ class FakeClient:
     async def cash(self) -> None:
         self._pending = self._responses["cash"]
 
-    async def compact_portfolio(self) -> None:
+    async def account_pairs(self) -> None:
+        self._pending = self._responses.get(
+            "account_pairs", {"accounts": [{"securitiesAccountNumber": "SEC1"}]}
+        )
+
+    async def compact_portfolio_by_type(self, sec_acc_no: str | None = None) -> None:
         self._pending = self._responses["portfolio"]
 
     async def ticker(self, isin: str, exchange: str) -> None:
@@ -64,32 +69,37 @@ def _broker(responses: dict[str, Any]) -> tuple[TradeRepublicBroker, FakeClient]
     return broker, client
 
 
-def test_account_combines_cash_and_portfolio_net_value() -> None:
+def test_account_equity_uses_live_marks() -> None:
     broker, _ = _broker(
         {
             "cash": [{"currencyId": "EUR", "amount": "1000.0"}],
-            "portfolio": {"netValue": "500.0", "positions": []},
+            "portfolio": {
+                "positions": [
+                    {"instrumentId": "US0378331005", "netSize": "4", "averageBuyIn": "100.0"},
+                ]
+            },
+            "ticker": {
+                "last": {"price": "110.0"},
+                "bid": {"price": "109.0"},
+                "ask": {"price": "111.0"},
+            },
         }
     )
     snap = asyncio.run(broker.account())
     assert snap.cash == 1000.0
-    assert snap.equity == 1500.0
+    assert snap.equity == 1000.0 + 4 * 110.0  # cash + mark * qty
     assert snap.buying_power == 1000.0
 
 
-def test_positions_map_isin_and_quantity() -> None:
+def test_positions_use_live_ticker_mark() -> None:
     broker, _ = _broker(
         {
             "portfolio": {
                 "positions": [
-                    {
-                        "instrumentId": "US0378331005",
-                        "netSize": "4",
-                        "averageBuyIn": "100.0",
-                        "netValue": "440.0",
-                    },
+                    {"instrumentId": "US0378331005", "netSize": "4", "averageBuyIn": "100.0"},
                 ]
-            }
+            },
+            "ticker": {"last": {"price": "110.0"}},
         }
     )
     positions = asyncio.run(broker.positions())
@@ -97,7 +107,22 @@ def test_positions_map_isin_and_quantity() -> None:
     assert positions[0].asset == "US0378331005"
     assert positions[0].qty == 4.0
     assert positions[0].avg_price == 100.0
-    assert positions[0].last_mark == 110.0  # net_value / quantity
+    assert positions[0].last_mark == 110.0  # from the live ticker
+
+
+def test_position_mark_falls_back_to_avg_buy_in_without_quote() -> None:
+    broker, _ = _broker(
+        {
+            "portfolio": {
+                "positions": [
+                    {"instrumentId": "X", "netSize": "2", "averageBuyIn": "50.0"},
+                ]
+            },
+            "ticker": {},  # no bid/ask/last -> no mark -> fall back to avg buy-in
+        }
+    )
+    positions = asyncio.run(broker.positions())
+    assert positions[0].last_mark == 50.0
 
 
 def test_place_limit_order_maps_to_trapi_request() -> None:

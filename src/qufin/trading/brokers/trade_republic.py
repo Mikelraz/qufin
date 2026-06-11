@@ -11,10 +11,13 @@ the optional ``trading-live`` dependency.
 Authentication / credentials
 ----------------------------
 Reads ``TR_PHONE_NUMBER`` / ``TR_PIN`` from the environment unless passed
-explicitly; the device key file is ``TR_KEY_FILE`` (or trapi's ``./key``
-default). Device pairing is a **one-time interactive step** (it prompts for an
-SMS token) — run it separately. ``connect`` only logs in and raises if no key is
-present; it never prompts.
+explicitly. Trade Republic uses a **web-login** flow: the first ``connect`` mints
+an AWS WAF token (headless browser — needs trapi's optional ``webauth`` extra),
+triggers a 2FA code to the phone, and persists ``tr_session`` cookies to a
+``session.json`` (``TR_SESSION_FILE`` or trapi's per-user default). Supply the
+2FA code through ``token_provider``; once a session is saved, later ``connect``
+calls reuse it without prompting. With no saved session and no ``token_provider``,
+``connect`` raises rather than blocking on ``input()``.
 
 Known limitations
 -----------------
@@ -30,7 +33,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, cast
@@ -50,11 +53,12 @@ from .._types import (
 )
 
 
-def _pairing_disabled(_prompt: str) -> str:
-    """Token provider that refuses interactive pairing inside the broker."""
+def _login_disabled(_prompt: str) -> str:
+    """Token provider used when none is supplied: refuse to block on input."""
     raise RuntimeError(
-        "Trade Republic device is not paired; run device pairing separately "
-        "before connecting (it prompts for an SMS token)."
+        "Trade Republic web login needs a 2FA code but no token_provider was set "
+        "and no saved session was found. Pass token_provider= to supply the SMS "
+        "code, or connect once interactively to persist a session."
     )
 
 
@@ -65,7 +69,10 @@ class TradeRepublicBroker:
     Parameters
     ----------
     phone_number, pin  Default to ``TR_PHONE_NUMBER`` / ``TR_PIN``.
-    key_path           Device key PEM path; defaults to ``TR_KEY_FILE`` then ``./key``.
+    session_path       Web-login session file path; defaults to ``TR_SESSION_FILE``
+                       then trapi's per-user default.
+    token_provider     Callable ``(prompt) -> code`` returning the 2FA code for a
+                       fresh web login. Unused once a saved session is reused.
     locale             Server response language (``"de"`` / ``"en"``).
     exchange           Trade Republic exchange id for orders/quotes (e.g. ``"LSX"``).
     currency           Account currency used to pick the cash balance.
@@ -75,7 +82,8 @@ class TradeRepublicBroker:
 
     phone_number: str | None = None
     pin: str | None = None
-    key_path: str | None = None
+    session_path: str | None = None
+    token_provider: Callable[[str], str] | None = None
     locale: str = "de"
     exchange: str = "LSX"
     currency: str = "EUR"
@@ -84,11 +92,12 @@ class TradeRepublicBroker:
     _client: Any = field(default=None, init=False, repr=False)
     _trapi: Any = field(default=None, init=False, repr=False)
     _connected: bool = field(default=False, init=False)
+    _sec_acc_no: str | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.phone_number = self.phone_number or os.environ.get("TR_PHONE_NUMBER")
         self.pin = self.pin or os.environ.get("TR_PIN")
-        self.key_path = self.key_path or os.environ.get("TR_KEY_FILE")
+        self.session_path = self.session_path or os.environ.get("TR_SESSION_FILE")
         if not self.phone_number or not self.pin:
             raise ValueError(
                 "TR_PHONE_NUMBER / TR_PIN are required. Pass them explicitly or set the env vars."
@@ -98,31 +107,39 @@ class TradeRepublicBroker:
 
     async def connect(self) -> None:
         trapi = self._import_trapi()
-        from trapi.config import resolve_key_path
-
-        key = resolve_key_path(self.key_path)
-        if not key.is_file():
-            raise RuntimeError(
-                f"no Trade Republic device key at {key}; pair the device first "
-                "(pairing prompts for an SMS token)."
-            )
         self._trapi = trapi
         self._client = trapi.TradeRepublic(
             self.phone_number,
             self.pin,
             self.locale,
-            key_path=self.key_path,
-            token_provider=_pairing_disabled,
+            session_path=self.session_path,
+            token_provider=self.token_provider or _login_disabled,
         )
-        # login() is synchronous (blocking HTTP); keep the event loop free.
+        # login() is synchronous (blocking HTTP + optional 2FA prompt); keep the
+        # event loop free.
         await asyncio.to_thread(self._client.login)
+        # A reused session may be stale; validate with one authenticated read and
+        # re-login if it was rejected (mirrors trapi.TradeRepublicSync.login()).
+        if self._client.loaded_session and not await self._session_is_valid():
+            await self._client.close()
+            self._client.clear_session()
+            await asyncio.to_thread(self._client.login, force_relogin=True)
         self._connected = True
 
     async def disconnect(self) -> None:
         self._connected = False
+        self._sec_acc_no = None
         if self._client is not None:
             await self._client.close()
             self._client = None
+
+    async def _session_is_valid(self) -> bool:
+        """Probe a reused session with one authenticated call (best-effort)."""
+        try:
+            await self._read_one(self._client.available_cash())
+            return True
+        except Exception:  # noqa: BLE001 - any failure means re-login
+            return False
 
     # ------------------------------------------------------------------ reads
 
@@ -131,29 +148,78 @@ class TradeRepublicBroker:
         cash = self._trapi.Cash.from_response(
             await self._read_one(self._client.cash()), self.currency
         )
-        portfolio = self._trapi.Portfolio.from_response(
-            await self._read_one(self._client.compact_portfolio())
-        )
-        net = portfolio.net_value or 0.0
+        _, holdings = await self._positions_with_marks()
         return AccountSnapshot(
             timestamp=datetime.now(tz=UTC),
             cash=cash.amount,
-            equity=cash.amount + net,
+            equity=cash.amount + holdings,
             buying_power=cash.amount,
         )
 
     async def positions(self) -> list[Position]:
         self._require_connected()
-        portfolio = self._trapi.Portfolio.from_response(
-            await self._read_one(self._client.compact_portfolio())
-        )
+        positions, _ = await self._positions_with_marks()
+        return positions
+
+    async def _positions_with_marks(self) -> tuple[list[Position], float]:
+        """Read open positions and mark each with a live ticker price.
+
+        ``compactPortfolioByType`` carries no per-position net value, so each
+        mark comes from a ``ticker`` quote (one round-trip per position; the
+        single WebSocket forces them to be sequential). Returns the qufin
+        positions and the total market value of the holdings (for equity).
+        """
+        portfolio = await self._portfolio()
         out: list[Position] = []
+        total = 0.0
         for p in portfolio.positions:
-            mark = (p.net_value / p.quantity) if (p.net_value and p.quantity) else p.average_buy_in
+            mark = await self._quote_mark(p.isin)
+            if mark is None:
+                # No live quote: fall back to the position's own net value, then
+                # to the average buy-in, so a mark is always populated.
+                mark = (
+                    (p.net_value / p.quantity)
+                    if (p.net_value and p.quantity)
+                    else p.average_buy_in
+                )
+            total += mark * p.quantity
             out.append(
                 Position(asset=p.isin, qty=p.quantity, avg_price=p.average_buy_in, last_mark=mark)
             )
-        return out
+        return out, total
+
+    async def _quote_mark(self, isin: str) -> float | None:
+        """Live mark for ``isin`` (``last``, else mid); ``None`` if unavailable."""
+        try:
+            quote = self._trapi.Quote.from_response(
+                await self._read_one(self._client.ticker(isin, self.exchange))
+            )
+        except Exception:  # noqa: BLE001 - one bad quote must not fail the snapshot
+            return None
+        return quote.last if quote.last is not None else quote.mid
+
+    async def _portfolio(self) -> Any:
+        """Read open positions via ``compactPortfolioByType``.
+
+        ``compactPortfolio`` / ``portfolio`` return no positions on current
+        accounts (and ``portfolio`` is now server-rejected); the by-type endpoint
+        needs the securities account number, resolved once via ``accountPairs``.
+        """
+        sec_acc_no = await self._securities_account_number()
+        return self._trapi.Portfolio.from_response(
+            await self._read_one(self._client.compact_portfolio_by_type(sec_acc_no))
+        )
+
+    async def _securities_account_number(self) -> str | None:
+        if self._sec_acc_no is None:
+            pairs = await self._read_one(self._client.account_pairs())
+            if isinstance(pairs, dict):
+                accounts = cast("list[Any]", cast("dict[str, Any]", pairs).get("accounts", []))
+                if accounts and isinstance(accounts[0], dict):
+                    value = cast("dict[str, Any]", accounts[0]).get("securitiesAccountNumber")
+                    if value is not None:
+                        self._sec_acc_no = str(value)
+        return self._sec_acc_no
 
     # ------------------------------------------------------------------ orders
 
